@@ -30,6 +30,7 @@
             <word>fread</word>
             <word>fwrite</word>
             <word>int</word>
+            <word>inval</word>
             <word>malloc</word>
             <word>memcpy</word>
             <word>printf</word>

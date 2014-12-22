@@ -20,6 +20,7 @@
 #define OUTFILENAME "waterfall_1920_2520_out.raw"
 #define BYTES 3
 #define STRSIZE 255
+#define ITERATIONS 5
 
 static FILE *in_fp = NULL;
 static FILE *out_fp[BYTES];
@@ -39,9 +40,9 @@ void convert_input();
 void convert_output();
 void apply_filter();
 void split_channels();
-double h(int p, int q);
-void out(unsigned int i, unsigned int j, double value);
-double in(unsigned int i, unsigned int j);
+//float h(int p, int q);
+//float in(unsigned int i, unsigned int j, unsigned int b);
+//void out(unsigned int i, unsigned int j, unsigned int b, float value);
 
 /*
  * 
@@ -152,8 +153,10 @@ int main(int argc, char** argv)
 				free(output_channel[b]);
 
 			free(output_image_data);
-
 			free(input_image_data);
+
+			free(output_image);
+			free(input_image);
 
 			return (EXIT_FAILURE);
 		}
@@ -187,8 +190,11 @@ int main(int argc, char** argv)
 	convert_input();
 
 	/* Apply filter. */
-	//		apply_filter(output_image_data, input_image_data, HEIGHT, WIDTH);
-	apply_filter();
+	for (i = 0; i < ITERATIONS; i++)
+	{
+		//		apply_filter(output_image_data, input_image_data, HEIGHT, WIDTH);
+		apply_filter();
+	}
 
 	//		fwrite(input_image_data[i], 1, WIDTH, out_fp);
 	//		fwrite(output_image_data + i * WIDTH, 1, WIDTH, out_fp);
@@ -243,9 +249,11 @@ int main(int argc, char** argv)
 	return (EXIT_SUCCESS);
 }
 
+static const float filterArray[3][3] = {0.0625, 0.125, 0.0625, 0.125, 0.25, 0.125, 0.0625, 0.125, 0.0625};
+
 void apply_filter()
 {
-	unsigned int i, j;
+	unsigned int i, j, b;
 	int p, q;
 
 	//	for (i = 0; i < height * width; i++)
@@ -257,35 +265,50 @@ void apply_filter()
 	//	memcpy(output_image_data, input_image_data, BYTES * HEIGHT * WIDTH * sizeof (char));
 	//	return;
 
-	memcpy(output_image, input_image, BYTES * HEIGHT * WIDTH * sizeof (float));
-	return;
+	//	memcpy(output_image, input_image, BYTES * HEIGHT * WIDTH * sizeof (float));
+	//	return;
 
-	//	for (i = 0; i < HEIGHT; i++)
-	//	{
-	//		if (i == 0 || i == HEIGHT - 1)
-	//			continue;
-	//
-	//		for (j = 0; j < WIDTH; j++)
-	//		{
-	//			if (j == 0 || i == HEIGHT - 1)
-	//				continue;
-	//
-	//			double value = 0.0;
-	//
-	//			for (p = -1; p <= 1; p++)
-	//			{
-	//				for (q = -1; q <= 1; q++)
-	//				{
-	//					//					*(output_image_data + WIDTH * i + j) = *(input_image_data + WIDTH * i + j);
-	//					double inval = in(i - p, j - q);
-	//					inval *= h(p, q);
-	//					value += inval;
-	//				}
-	//			}
-	//
-	//			out(i, j, value);
-	//		}
-	//	}
+	float *tmp;
+
+	/* Use previous output as new input. */
+	tmp = input_image;
+	input_image = output_image;
+	output_image = tmp;
+
+	for (i = 0; i < HEIGHT; i++)
+	{
+		if (i == 0 || i == HEIGHT - 1)
+			continue;
+
+		for (j = 0; j < WIDTH; j++)
+		{
+			if (j == 0 || i == HEIGHT - 1)
+				continue;
+
+			for (b = 0; b < BYTES; b++)
+			{
+				float value = 0.0;
+
+				for (p = -1; p <= 1; p++)
+				{
+					for (q = -1; q <= 1; q++)
+					{
+						// *(output_image_data + WIDTH * i + j) = *(input_image_data + WIDTH * i + j);
+
+						// float inval = in(i - p, j - q, b);
+						// inval *= h(p, q);
+						// value += inval;
+
+						// value += in(i - p, j - q, b) * h(p, q);
+						value += *(input_image + BYTES * ((i - p) * WIDTH + (j - q) + b)) * filterArray[p + 1][q + 1];
+					}
+				}
+
+				// out(i, j, b, value);
+				*(output_image + BYTES * (i * WIDTH + j) + b) = value;
+			}
+		}
+	}
 }
 
 void split_channels()
@@ -296,44 +319,47 @@ void split_channels()
 	{
 		for (j = 0; j < WIDTH; j++)
 		{
+
 			for (b = 0; b < BYTES; b++)
 				*(output_channel[b] + i * WIDTH + j) = *(output_image_data + BYTES * (i * WIDTH + j) + b);
 		}
 	}
 }
 
-static const double filterArray[3][3] = {0.0625, 0.125, 0.0625, 0.125, 0.25, 0.125, 0.0625, 0.125, 0.0625};
-
-double h(int p, int q)
-{
-	assert(p >= -1 && p <= 1);
-	assert(q >= -1 && q <= 1);
-
-	return filterArray[p + 1][q + 1];
-}
-
-double in(unsigned int i, unsigned int j)
-{
-	assert(i < HEIGHT);
-	assert(j < WIDTH);
-
-	return (double) *(input_image_data + WIDTH * i + j);
-}
-
-void out(unsigned int i, unsigned int j, double value)
-{
-	assert(i < HEIGHT);
-	assert(j < WIDTH);
-	assert(value >= 0.0 && value <= 255.0);
-
-	//	*(output_image_data + WIDTH * i + j) = (unsigned char) value;
-}
+//float h(int p, int q)
+//{
+//	assert(p >= -1 && p <= 1);
+//	assert(q >= -1 && q <= 1);
+//
+//	return filterArray[p + 1][q + 1];
+//}
+//
+//float in(unsigned int i, unsigned int j, unsigned int b)
+//{
+//	assert(i < HEIGHT);
+//	assert(j < WIDTH);
+//	assert(b < BYTES);
+//
+//	return *(input_image + BYTES * (i * WIDTH + j) + b);
+//}
+//
+//void out(unsigned int i, unsigned int j, unsigned int b, float value)
+//{
+//
+//	assert(i < HEIGHT);
+//	assert(j < WIDTH);
+//	assert(b < BYTES);
+//	assert(value >= 0.0 && value <= 255.0);
+//
+//	*(output_image + BYTES * (i * WIDTH + j) + b) = value;
+//}
 
 void convert_input()
 {
 	unsigned int i;
+
 	for (i = 0; i < BYTES * HEIGHT * WIDTH; i++)
-		*(input_image + i) = (float) *(input_image_data + i);
+		*(output_image + i) = (float) *(input_image_data + i);
 }
 
 void convert_output()
