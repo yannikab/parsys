@@ -29,9 +29,14 @@ static char *out_filename[BYTES];
 static unsigned char *input_image_data = NULL;
 static unsigned char *output_image_data = NULL;
 
+static float *input_image = NULL;
+static float *output_image = NULL;
+
 static unsigned char *output_channel[BYTES];
 
 //void apply_filter(char *image_data_out, const char *image_data_in, unsigned int height, unsigned int width);
+void convert_input();
+void convert_output();
 void apply_filter();
 void split_channels();
 double h(int p, int q);
@@ -113,6 +118,26 @@ int main(int argc, char** argv)
 		return (EXIT_FAILURE);
 	}
 
+	/* Allocate memory for image data. */
+	input_image = malloc(BYTES * HEIGHT * WIDTH * sizeof (float));
+	if (input_image == NULL)
+	{
+		perror("malloc");
+		free(input_image_data);
+		free(output_image_data);
+		return (EXIT_FAILURE);
+	}
+
+	output_image = malloc(BYTES * HEIGHT * WIDTH * sizeof (float));
+	if (output_image == NULL)
+	{
+		perror("malloc");
+		free(input_image_data);
+		free(output_image_data);
+		free(input_image);
+		return (EXIT_FAILURE);
+	}
+
 	for (b = 0; b < BYTES; b++)
 	{
 		output_channel[b] = NULL;
@@ -159,12 +184,16 @@ int main(int argc, char** argv)
 		fread(input_image_data + i * BYTES * WIDTH, 1, BYTES * WIDTH, in_fp);
 	}
 
+	convert_input();
+
 	/* Apply filter. */
 	//		apply_filter(output_image_data, input_image_data, HEIGHT, WIDTH);
 	apply_filter();
 
 	//		fwrite(input_image_data[i], 1, WIDTH, out_fp);
 	//		fwrite(output_image_data + i * WIDTH, 1, WIDTH, out_fp);
+
+	convert_output();
 
 	// split output image data to separate channels
 	split_channels();
@@ -225,7 +254,10 @@ void apply_filter()
 	//	}
 
 	/* Null filter, memory copy. */
-	memcpy(output_image_data, input_image_data, BYTES * HEIGHT * WIDTH);
+	//	memcpy(output_image_data, input_image_data, BYTES * HEIGHT * WIDTH * sizeof (char));
+	//	return;
+
+	memcpy(output_image, input_image, BYTES * HEIGHT * WIDTH * sizeof (float));
 	return;
 
 	//	for (i = 0; i < HEIGHT; i++)
@@ -295,4 +327,18 @@ void out(unsigned int i, unsigned int j, double value)
 	assert(value >= 0.0 && value <= 255.0);
 
 	//	*(output_image_data + WIDTH * i + j) = (unsigned char) value;
+}
+
+void convert_input()
+{
+	unsigned int i;
+	for (i = 0; i < BYTES * HEIGHT * WIDTH; i++)
+		*(input_image + i) = (float) *(input_image_data + i);
+}
+
+void convert_output()
+{
+	unsigned int i;
+	for (i = 0; i < BYTES * HEIGHT * WIDTH; i++)
+		*(output_image_data + i) = (unsigned char) *(output_image + i);
 }
