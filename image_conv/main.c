@@ -189,7 +189,7 @@ int main(int argc, char** argv)
 		tmp = input_image;
 		input_image = output_image;
 		output_image = tmp;
-		
+
 		apply_filter();
 	}
 
@@ -198,7 +198,7 @@ int main(int argc, char** argv)
 	for (i = 0; i < HEIGHT; i++)
 		for (j = 0; j < WIDTH; j++)
 			for (c = 0; c < CHANNELS; c++)
-				output_channel[c][i][j] = (float) output_image[i][j][c];
+				output_channel[c][i][j] = (char) output_image[i][j][c];
 	// output_buffer[i][j][c] = (float) output_image[i][j][c];
 	// *(output_image_data + i) = (unsigned char) *(output_image + i);
 
@@ -213,6 +213,7 @@ int main(int argc, char** argv)
 			fwrite(output_channel[c][i], 1, WIDTH, out_fp[c]);
 
 	/* Close files. */
+	
 	if (fclose(in_fp))
 	{
 		fprintf(stderr, "Could not close file: %s", INFILENAME);
@@ -247,6 +248,7 @@ int main(int argc, char** argv)
 
 	return (EXIT_SUCCESS);
 }
+
 
 static const float filter[3][3] = {0.0625, 0.125, 0.0625, 0.125, 0.25, 0.125, 0.0625, 0.125, 0.0625};
 
