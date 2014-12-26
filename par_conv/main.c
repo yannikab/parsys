@@ -21,7 +21,7 @@
 #define B 1
 static const float filter[3][3] = {0.0625f, 0.125f, 0.0625f, 0.125f, 0.25f, 0.125f, 0.0625f, 0.125f, 0.0625f};
 
-#define ITERATIONS 20
+#define ITERATIONS 5
 
 static FILE *out_fp[CHANNELS];
 
@@ -117,16 +117,16 @@ bool read_image(unsigned char ***input_buffer)
 		ok = false;
 	}
 
-	if (ok)
-		printf("Input file opened.\n");
+	//	if (ok)
+	//		printf("Input file opened.\n");
 
 	/* Allocate memory for file buffer. */
 
 	if (ok && !alloc_uchar_array(input_buffer, HEIGHT, WIDTH, CHANNELS))
 		ok = false;
 
-	if (ok)
-		printf("Buffer allocated.\n");
+	//	if (ok)
+	//		printf("Buffer allocated.\n");
 
 	/* Read image data one row at a time. */
 
@@ -134,8 +134,8 @@ bool read_image(unsigned char ***input_buffer)
 		if (fread((*input_buffer)[i], 1, WIDTH * CHANNELS, in_fp) != WIDTH * CHANNELS)
 			ok = false;
 
-	if (ok)
-		printf("Image read.\n");
+	//	if (ok)
+	//		printf("Image read.\n");
 
 	/* If an error occurs, free allocated memory. */
 
@@ -310,6 +310,79 @@ void apply_outer_filter(float (**output_image)[CHANNELS], float (**input_image)[
 	}
 }
 
+void get_neighbors(MPI_Comm comm, int *n_p, int *s_p, int *e_p, int *w_p, int *nw_p, int *se_p, int *ne_p, int *sw_p)
+{
+	int north[2], south[2], east[2], west[2];
+	int nw[2], se[2], ne[2], sw[2];
+
+	/* Get north/south/east/west ranks. */
+
+	MPI_Cart_shift(comm, 0, 1, n_p, s_p);
+	MPI_Cart_shift(comm, 1, -1, e_p, w_p);
+
+	/* Get cartesian coordinates for n/s/e/w. */
+
+	if (*n_p != MPI_PROC_NULL)
+		MPI_Cart_coords(comm, *n_p, 2, north);
+	if (*s_p != MPI_PROC_NULL)
+		MPI_Cart_coords(comm, *s_p, 2, south);
+	if (*e_p != MPI_PROC_NULL)
+		MPI_Cart_coords(comm, *e_p, 2, east);
+	if (*w_p != MPI_PROC_NULL)
+		MPI_Cart_coords(comm, *w_p, 2, west);
+
+	/* Get diagonal ranks. */
+
+	if (*n_p != MPI_PROC_NULL && *w_p != MPI_PROC_NULL) // north west
+	{
+		nw[0] = north[0];
+		nw[1] = west[1];
+		MPI_Cart_rank(comm, nw, nw_p);
+	} else
+	{
+		*nw_p = MPI_PROC_NULL;
+	}
+
+	if (*s_p != MPI_PROC_NULL && *e_p != MPI_PROC_NULL) // south east
+	{
+		se[0] = south[0];
+		se[1] = east[1];
+		MPI_Cart_rank(comm, se, se_p);
+	} else
+	{
+		*se_p = MPI_PROC_NULL;
+	}
+
+	if (*n_p != MPI_PROC_NULL && *e_p != MPI_PROC_NULL) // north east
+	{
+		ne[0] = north[0];
+		ne[1] = east[1];
+		MPI_Cart_rank(comm, ne, ne_p);
+	} else
+	{
+		*ne_p = MPI_PROC_NULL;
+	}
+
+	if (*s_p != MPI_PROC_NULL && *w_p != MPI_PROC_NULL) // south west
+	{
+		sw[0] = south[0];
+		sw[1] = west[1];
+		MPI_Cart_rank(comm, sw, sw_p);
+	} else
+	{
+		*sw_p = MPI_PROC_NULL;
+	}
+}
+
+bool in_even_row(MPI_Comm comm, int rank)
+{
+	int coords[2];
+
+	MPI_Cart_coords(comm, rank, 2, coords);
+
+	return coords[0] % 2 == 0;
+}
+
 /*
  * 
  */
@@ -337,13 +410,24 @@ int main(int argc, char** argv)
 
 	//	printf("%d %d\n", local_width, local_height);
 
-	/* Define s x s cartesian topology of slaves, excluding master node which is last. */
+	/* Define s x s cartesian topology of slaves, excluding master node which is last in rank. */
 
-	//	MPI_Comm comm_slaves;
-	//	int ndims = 2;
-	//	int dims[] = {s, s};
-	//	int periods[] = {0, 0};
-	//	MPI_Cart_create(MPI_COMM_WORLD, ndims, dims, periods, true, &comm_slaves);
+	MPI_Comm comm_slaves;
+	int ndims = 2;
+	int dims[] = {s, s};
+	int periods[] = {0, 0};
+	MPI_Cart_create(MPI_COMM_WORLD, ndims, dims, periods, true, &comm_slaves);
+
+	int north, south, east, west;
+	int ne, nw, se, sw;
+
+	get_neighbors(comm_slaves, &north, &south, &east, &west, &nw, &se, &ne, &sw);
+
+	//		printf("rank: %d\n", rank);
+	//		printf("north: %d, south: %d, east: %d, west: %d\n", north, south, east, west);
+	//		printf("nw: %d, se: %d, ne: %d, sw: %d\n", nw, se, ne, sw);
+
+	bool even_row = in_even_row(comm_slaves, rank);
 
 	if (rank == master)
 	{
@@ -372,7 +456,7 @@ int main(int argc, char** argv)
 
 		/* Send each subarray to corresponding process. */
 
-		printf("Master: %d \n", rank);
+		//		printf("Master: %d \n", rank);
 
 		for (r = 0; r < size; r++)
 		{
@@ -385,7 +469,7 @@ int main(int argc, char** argv)
 			int y = r / s;
 			MPI_Send(&(input_image_data[y * local_height][x * local_width][0]), 1, local_image_t, r, 0, MPI_COMM_WORLD);
 
-			printf("Send returned: %d \n", rank);
+			//			printf("Send returned: %d \n", rank);
 		}
 	} else
 	{
@@ -403,17 +487,22 @@ int main(int argc, char** argv)
 
 		/* Receive inner image. */
 
-		printf("Slave: %d \n", rank);
+		//		printf("Slave: %d \n", rank);
 		MPI_Status status;
 		//		int d;
 		//		MPI_Recv(&d, 1, MPI_INT, master, 0, MPI_COMM_WORLD, &status);
 		//		MPI_Recv(&(output_image_data[1][1][0]), local_height * local_width * CHANNELS, MPI_FLOAT, master, 0, MPI_COMM_WORLD, &status);
 		MPI_Recv(&(output_image_data[B][B][0]), 1, inner_image_t, master, 0, MPI_COMM_WORLD, &status);
-		printf("Received at %d.\n", rank);
+		//		printf("Received at %d.\n", rank);
 
 		int received;
 		MPI_Get_count(&status, inner_image_t, &received);
 		//		printf("Count: %d.\n", received);
+
+		double start, finish, elapsed, max_elapsed;
+
+		MPI_Barrier(comm_slaves);
+		start = MPI_Wtime();
 
 		/* Apply filter. */
 
@@ -433,7 +522,16 @@ int main(int argc, char** argv)
 			apply_outer_filter(output_image_data, input_image_data, B + local_height + B, B + local_width + B);
 		}
 
-		unsigned char **output_buffer[CHANNELS];
+		finish = MPI_Wtime();
+
+		elapsed = finish - start;
+
+		MPI_Reduce(&elapsed, &max_elapsed, 1, MPI_DOUBLE, MPI_MAX, 0, comm_slaves);
+
+		if (rank == 0)
+			printf("Time elapsed: %lf seconds\n", max_elapsed);
+
+				unsigned char **output_buffer[CHANNELS];
 
 		for (c = 0; c < CHANNELS; c++)
 			alloc_uchar_array(&(output_buffer[c]), local_height, local_width, 1);
@@ -505,7 +603,7 @@ int main(int argc, char** argv)
 		{
 			command[0] = '\0';
 			sprintf(command, "raw2tiff -l %d -w %d %s %s.tiff", local_height, local_width, out_filename[c], out_filename[c]);
-			printf("%s\n", command);
+			//			printf("%s\n", command);
 			system(command);
 		}
 
