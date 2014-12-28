@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <stdbool.h>
 #include <unistd.h>
 #include <sys/times.h>
 
@@ -16,86 +17,365 @@
 
 #define WIDTH 1920
 #define HEIGHT 2520
+#define CHANNELS 3
+
+#define B 1
+static const float filter[3][3] = {0.0625, 0.125, 0.0625, 0.125, 0.25, 0.125, 0.0625, 0.125, 0.0625};
+
+#define ITERATIONS 5
+
 #define INFILENAME "waterfall_1920_2520.raw"
 #define OUTFILENAME "waterfall_1920_2520_out.raw"
-#define CHANNELS 3
-#define ITERATIONS 5
 #define STRSIZE 255
 
-static FILE *in_fp = NULL;
-static FILE *out_fp[CHANNELS];
-
-static char *out_filename[CHANNELS];
-
-static unsigned char (*input_buffer)[WIDTH][CHANNELS];
-static unsigned char (*output_buffer)[WIDTH][CHANNELS];
-
-static float (*input_image)[WIDTH][CHANNELS];
-static float (*output_image)[WIDTH][CHANNELS];
-
-static unsigned char (*output_channel[CHANNELS])[WIDTH];
-
 //void apply_filter(char *image_data_out, const char *image_data_in, unsigned int height, unsigned int width);
-void convert_input();
-void convert_output();
-void apply_filter();
 //void split_channels();
 //float h(int p, int q);
 //float in(unsigned int i, unsigned int j, unsigned int b);
 //void out(unsigned int i, unsigned int j, unsigned int b, float value);
+
+bool alloc_uchar_array(unsigned char ***array, int rows, int columns, int channels)
+{
+	char *p;
+	p = malloc(rows * columns * channels * sizeof (unsigned char));
+	if (p == NULL)
+	{
+		perror("malloc");
+		return false;
+	}
+
+	(*array) = malloc(rows * sizeof (unsigned char *));
+	if ((*array) == NULL)
+	{
+		perror("malloc");
+		free(p);
+		return false;
+	}
+
+	int i;
+	for (i = 0; i < rows; i++)
+		(*array)[i] = &(p[i * columns * channels]);
+
+	return true;
+}
+
+bool alloc_float_array(float ***array, int rows, int columns, int channels)
+{
+	float *p;
+	p = malloc(rows * columns * channels * sizeof (float));
+	if (p == NULL)
+	{
+		perror("malloc");
+		return false;
+	}
+
+	(*array) = malloc(rows * sizeof (float *));
+	if ((*array) == NULL)
+	{
+		perror("malloc");
+		free(p);
+		return false;
+	}
+
+	int i;
+	for (i = 0; i < rows; i++)
+		(*array)[i] = &(p[i * columns * channels]);
+
+	return true;
+}
+
+void dealloc_uchar_array(unsigned char ***array)
+{
+	assert(array != NULL);
+
+	free(&((*array)[0][0]));
+	free(*array);
+	*array = NULL;
+}
+
+void dealloc_float_array(unsigned char ***array)
+{
+	assert(array != NULL);
+
+	free(&((*array)[0][0]));
+	free(*array);
+	*array = NULL;
+}
+
+bool read_image(unsigned char ***input_buffer)
+{
+	FILE *in_fp;
+	int i;
+
+	bool ok = true;
+
+	/* Open input file. */
+
+	in_fp = NULL;
+	if (ok && (in_fp = fopen(INFILENAME, "rb")) == NULL)
+	{
+		perror(INFILENAME);
+		ok = false;
+	}
+
+	//	if (ok)
+	//		printf("Input file opened.\n");
+
+	/* Allocate memory for file buffer. */
+
+	if (ok && !alloc_uchar_array(input_buffer, HEIGHT, WIDTH, CHANNELS))
+		ok = false;
+
+	//	if (ok)
+	//		printf("Buffer allocated.\n");
+
+	/* Read image data one row at a time. */
+
+	for (i = 0; ok && i < HEIGHT; i++)
+		if (fread((*input_buffer)[i], 1, WIDTH * CHANNELS, in_fp) != WIDTH * CHANNELS)
+			ok = false;
+
+	//	if (ok)
+	//		printf("Image read.\n");
+
+	/* If an error occurs, free allocated memory. */
+
+	if (!ok)
+		dealloc_uchar_array(input_buffer);
+
+	return ok;
+}
+
+bool write_channels(float (**input_image_data)[CHANNELS], int height, int width)
+{
+	int i, j, c;
+
+	char *out_filename[CHANNELS];
+	FILE * out_fp[CHANNELS];
+
+	for (c = 0; c < CHANNELS; c++)
+	{
+		out_filename[c] = NULL;
+		out_fp[c] = NULL;
+	}
+
+	bool ok = true;
+
+	/* Create one output buffer per channel. */
+
+	unsigned char **output_buffer[CHANNELS];
+
+	for (c = 0; ok && c < CHANNELS; c++)
+		ok = alloc_uchar_array(&(output_buffer[c]), height, width, 1);
+
+	/* Copy each channel from image, with conversion to byte. */
+
+	for (c = 0; ok && c < CHANNELS; c++)
+		for (i = 0; i < height; i++)
+			for (j = 0; j < width; j++)
+				output_buffer[c][i][j] = (char) input_image_data[i][j][c];
+
+	/* Create filename for each output channel. */
+
+	for (c = 0; ok && c < CHANNELS; c++)
+	{
+		out_filename[c] = malloc(STRSIZE * sizeof (char));
+
+		if (out_filename[c] == NULL)
+		{
+			perror("malloc");
+			ok = false;
+		}
+
+		if (ok)
+		{
+			out_filename[c][0] = '\0';
+
+			char s[STRSIZE];
+
+			s[0] = '\0';
+			sprintf(s, "../serial/%d", c);
+			strcat(out_filename[c], s);
+			strcat(out_filename[c], "_");
+
+			strcat(out_filename[c], OUTFILENAME);
+		}
+	}
+
+	for (c = 0; ok && c < CHANNELS; c++)
+	{
+		out_fp[c] = fopen(out_filename[c], "wb");
+		if (out_fp[c] == NULL)
+		{
+			perror(out_filename[c]);
+			ok = false;
+		}
+	}
+
+	for (c = 0; ok && c < CHANNELS; c++)
+		for (i = 0; ok && i < height; i++)
+			ok = fwrite(output_buffer[c][i], 1, width, out_fp[c]) == width;
+
+	for (c = 0; c < CHANNELS; c++)
+	{
+		if (fclose(out_fp[c]))
+		{
+			fprintf(stderr, "Could not close file: %s", out_filename[c]);
+			ok = false;
+		}
+	}
+
+	/* Convert output files to tiff format. */
+
+	char command[STRSIZE];
+	for (c = 0; ok && c < CHANNELS; c++)
+	{
+		command[0] = '\0';
+		sprintf(command, "raw2tiff -l %d -w %d %s %s.tiff", height, width, out_filename[c], out_filename[c]);
+		printf("%s\n", command);
+		system(command);
+	}
+
+	/* Free memory for filenames. */
+	for (c = 0; c < CHANNELS; c++)
+	{
+		free(out_filename[c]);
+		out_filename[c] = NULL;
+	}
+
+	return ok;
+}
+
+void apply_inner_filter(float (**output_image)[CHANNELS], float (**input_image)[CHANNELS], int height, int width)
+{
+	unsigned int i, j, c;
+	int p, q;
+
+	for (i = 2 * B; i < height - 2 * B; i++)
+	{
+		for (j = 2 * B; j < width - 2 * B; j++)
+		{
+			for (c = 0; c < CHANNELS; c++)
+			{
+				float value = 0.0f;
+
+				for (p = -B; p <= B; p++)
+					for (q = -B; q <= B; q++)
+						value += input_image[i - p][j - q][c] * filter[p + B][q + B];
+
+				output_image[i][j][c] = value;
+			}
+		}
+	}
+}
+
+void apply_outer_filter(float (**output_image)[CHANNELS], float (**input_image)[CHANNELS], int height, int width)
+{
+	unsigned int i, j, c;
+	int p, q;
+
+	for (c = 0; c < CHANNELS; c++)
+	{
+		/* Left border column. */
+
+		for (i = B; i < height - B; i++)
+		{
+			for (j = B; j < 2 * B; j++)
+			{
+				float value = 0.0f;
+
+				for (p = -B; p <= B; p++)
+					for (q = -B; q <= B; q++)
+						value += input_image[i - p][j - q][c] * filter[p + B][q + B];
+
+				output_image[i][j][c] = value;
+			}
+		}
+
+		/* Right border column. */
+
+		for (i = B; i < height - B; i++)
+		{
+			for (j = width - 1 - B; j > width - 1 - 2 * B; j--)
+			{
+				float value = 0.0f;
+
+				for (p = -B; p <= B; p++)
+					for (q = -B; q <= B; q++)
+						value += input_image[i - p][j - q][c] * filter[p + B][q + B];
+
+				output_image[i][j][c] = value;
+			}
+		}
+
+		/* Top border row, avoid recalculating overlap with columns. */
+
+		for (j = 2 * B; j < width - 2 * B; j++)
+		{
+			for (i = B; i < 2 * B; i++)
+			{
+				float value = 0.0f;
+
+				for (p = -B; p <= B; p++)
+					for (q = -B; q <= B; q++)
+						value += input_image[i - p][j - q][c] * filter[p + B][q + B];
+
+				output_image[i][j][c] = value;
+			}
+		}
+
+		/* Bottom border row, avoid recalculating overlap with columns. */
+
+		for (j = 2 * B; j < width - 2 * B; j++)
+		{
+			for (i = height - 1 - B; i > height - 1 - 2 * B; i--)
+			{
+				float value = 0.0f;
+
+				for (p = -B; p <= B; p++)
+					for (q = -B; q <= B; q++)
+						value += input_image[i - p][j - q][c] * filter[p + B][q + B];
+
+				output_image[i][j][c] = value;
+			}
+		}
+	}
+}
 
 /*
  * 
  */
 int main(int argc, char** argv)
 {
-	unsigned int i, j, c;
+	unsigned int i, j, c, n;
 
-	/* Open files. */
+	bool ok = true;
 
-	in_fp = fopen(INFILENAME, "rb");
-	if (in_fp == NULL)
-	{
-		perror(INFILENAME);
-		return (EXIT_FAILURE);
-	}
+	/* Read input file into buffer. */
 
-	for (c = 0; c < CHANNELS; c++)
-	{
-		out_filename[c] = NULL;
+	char (**input_buffer)[CHANNELS];
 
-		out_filename[c] = malloc(STRSIZE * sizeof (char));
+	if (ok)
+		ok = read_image((unsigned char ***) &input_buffer);
 
-		if (out_filename[c] == NULL)
-		{
-			perror("malloc");
-			for (i = 0; i < c; i++)
-				free(out_filename[c]);
-			return (EXIT_FAILURE);
-		}
+	/* Allocate memory for image data. */
 
-		out_filename[c][0] = '\0';
+	float (**input_image_data)[CHANNELS];
 
-		char s[STRSIZE];
-		s[0] = '\0';
-		sprintf(s, "%d", c);
-		strcat(out_filename[c], s);
+	if (ok)
+		ok = alloc_float_array((float ***) &input_image_data, B + HEIGHT + B, B + WIDTH + B, CHANNELS);
 
-		strcat(out_filename[c], "_");
+	float (**output_image_data)[CHANNELS];
 
-		strcat(out_filename[c], OUTFILENAME);
-	}
+	if (ok)
+		ok = alloc_float_array((float ***) &output_image_data, B + HEIGHT + B, B + WIDTH + B, CHANNELS);
 
-	for (c = 0; c < CHANNELS; c++)
-	{
-		out_fp[c] = NULL;
-		out_fp[c] = fopen(out_filename[c], "wb");
-		if (out_fp[c] == NULL)
-		{
-			perror(out_filename[c]);
-			return (EXIT_FAILURE);
-		}
-	}
+	/* Convert input. */
+
+	for (c = 0; ok && c < CHANNELS; c++)
+		for (i = 0; i < HEIGHT; i++)
+			for (j = 0; j < WIDTH; j++)
+				output_image_data[i + B][j + B][c] = (float) input_buffer[i][j][c];
 
 	/* Start timing. */
 
@@ -105,128 +385,70 @@ int main(int argc, char** argv)
 
 	t1 = (double) times(&tb1);
 
-	/* Allocate memory for file buffers. */
-
-	input_buffer = malloc(HEIGHT * sizeof (*input_buffer));
-	if (input_buffer == NULL)
-	{
-		perror("malloc");
-		return (EXIT_FAILURE);
-	}
-
-	output_buffer = malloc(HEIGHT * sizeof (*output_buffer));
-	if (output_buffer == NULL)
-	{
-		perror("malloc");
-		free(input_buffer);
-		return (EXIT_FAILURE);
-	}
-
-	/* Allocate memory for image data. */
-
-	input_image = malloc(HEIGHT * sizeof (*input_image));
-	if (input_image == NULL)
-	{
-		perror("malloc");
-		free(input_buffer);
-		free(output_buffer);
-		return (EXIT_FAILURE);
-	}
-
-	output_image = malloc(HEIGHT * sizeof (*output_image));
-	if (output_image == NULL)
-	{
-		perror("malloc");
-		free(input_buffer);
-		free(output_buffer);
-		free(input_image);
-		return (EXIT_FAILURE);
-	}
-
-	for (c = 0; c < CHANNELS; c++)
-	{
-		output_channel[c] = NULL;
-
-		output_channel[c] = malloc(HEIGHT * sizeof (*output_channel[c]));
-
-		if (output_channel[c] == NULL)
-		{
-			perror("malloc");
-
-			for (i = 0; i < c; i++)
-				free(output_channel[i]);
-
-			free(output_buffer);
-			free(input_buffer);
-
-			free(output_image);
-			free(input_image);
-
-			return (EXIT_FAILURE);
-		}
-	}
-
-	/* Read image data one row at a time. */
-
-	for (i = 0; i < HEIGHT; i++)
-		fread(input_buffer[i], 1, WIDTH * CHANNELS, in_fp);
-
-	/* Convert input. */
-
-	for (i = 0; i < HEIGHT; i++)
-		for (j = 0; j < WIDTH; j++)
-			for (c = 0; c < CHANNELS; c++)
-				output_image[i][j][c] = (float) input_buffer[i][j][c];
-	// *(output_image + i) = (float) *(input_image_data + i);
-
 	/* Apply filter. */
 
-	for (i = 0; i < ITERATIONS; i++)
+	for (n = 0; n < ITERATIONS; n++)
 	{
+		/* Fill borders with outer image data. */
+
+		// south
+		for (i = HEIGHT + B; i < HEIGHT + 2 * B; i++)
+			for (j = B; j < B + WIDTH; j++)
+				for (c = 0; c < CHANNELS; c++)
+					output_image_data[i][j][c] = output_image_data[B + HEIGHT - 1][j][c];
+
+		// north
+		for (i = 0; i < B; i++) // north
+			for (j = B; j < B + WIDTH; j++)
+				for (c = 0; c < CHANNELS; c++)
+					output_image_data[i][j][c] = output_image_data[B][j][c];
+
+		// east
+		for (i = B; i < B + HEIGHT; i++)
+			for (j = WIDTH + B; j < WIDTH + 2 * B; j++)
+				for (c = 0; c < CHANNELS; c++)
+					output_image_data[i][j][c] = output_image_data[i][B + WIDTH - 1][c];
+
+		// west
+		for (i = B; i < B + HEIGHT; i++)
+			for (j = 0; j < B; j++)
+				for (c = 0; c < CHANNELS; c++)
+					output_image_data[i][j][c] = output_image_data[i][B][c];
+
+		// se
+		for (i = HEIGHT + B; i < HEIGHT + 2 * B; i++)
+			for (j = WIDTH + B; j < WIDTH + 2 * B; j++)
+				for (c = 0; c < CHANNELS; c++)
+					output_image_data[i][j][c] = output_image_data[B + HEIGHT - 1][B + WIDTH - 1][c];
+
+		// nw
+		for (i = 0; i < B; i++)
+			for (j = 0; j < B; j++)
+				for (c = 0; c < CHANNELS; c++)
+					output_image_data[i][j][c] = output_image_data[B][B][c];
+
+		// sw
+		for (i = HEIGHT + B; i < HEIGHT + 2 * B; i++)
+			for (j = 0; j < B; j++)
+				for (c = 0; c < CHANNELS; c++)
+					output_image_data[i][j][c] = output_image_data[B + HEIGHT - 1][B][c];
+
+		// ne
+		for (i = 0; i < B; i++)
+			for (j = WIDTH + B; j < WIDTH + 2 * B; j++)
+				for (c = 0; c < CHANNELS; c++)
+					output_image_data[i][j][c] = output_image_data[B][B + WIDTH - 1][c];
+
 		/* Use previous output as new input. */
 
-		float (*tmp)[WIDTH][CHANNELS];
-		tmp = input_image;
-		input_image = output_image;
-		output_image = tmp;
+		float (**tmp)[CHANNELS];
+		tmp = input_image_data;
+		input_image_data = output_image_data;
+		output_image_data = tmp;
 
-		apply_filter();
-	}
+		apply_inner_filter(output_image_data, input_image_data, B + HEIGHT + B, B + WIDTH + B);
 
-	/* Convert output. */
-
-	for (i = 0; i < HEIGHT; i++)
-		for (j = 0; j < WIDTH; j++)
-			for (c = 0; c < CHANNELS; c++)
-				output_channel[c][i][j] = (char) output_image[i][j][c];
-	// output_buffer[i][j][c] = (float) output_image[i][j][c];
-	// *(output_image_data + i) = (unsigned char) *(output_image + i);
-
-	/* Split output image data to separate channels. */
-
-	// split_channels();
-
-	/* Write out channels to separate files. */
-
-	for (c = 0; c < CHANNELS; c++)
-		for (i = 0; i < HEIGHT; i++)
-			fwrite(output_channel[c][i], 1, WIDTH, out_fp[c]);
-
-	/* Close files. */
-	
-	if (fclose(in_fp))
-	{
-		fprintf(stderr, "Could not close file: %s", INFILENAME);
-		return (EXIT_FAILURE);
-	}
-
-	for (c = 0; c < CHANNELS; c++)
-	{
-		if (fclose(out_fp[c]))
-		{
-			fprintf(stderr, "Could not close file: %s", out_filename[c]);
-			return (EXIT_FAILURE);
-		}
+		apply_outer_filter(output_image_data, input_image_data, B + HEIGHT + B, B + WIDTH + B);
 	}
 
 	/* Stop time measurement, print time. */
@@ -236,61 +458,11 @@ int main(int argc, char** argv)
 	real_time = (double) (t2 - t1) / tickspersec;
 	printf("Completed in %.3f sec\n", real_time);
 
-	/* Convert output to tiff format. */
-
-	char command[STRSIZE];
-	for (c = 0; c < CHANNELS; c++)
-	{
-		command[0] = '\0';
-		sprintf(command, "raw2tiff -l %d -w %d %s %s.tiff", HEIGHT, WIDTH, out_filename[c], out_filename[c]);
-		system(command);
-	}
+	write_channels(output_image_data, B + HEIGHT + B, B + WIDTH + B);
 
 	return (EXIT_SUCCESS);
 }
 
-
-static const float filter[3][3] = {0.0625, 0.125, 0.0625, 0.125, 0.25, 0.125, 0.0625, 0.125, 0.0625};
-
-void apply_filter()
-{
-	unsigned int i, j, c;
-	int p, q;
-
-	/* Null filter, memory copy. */
-	//	memcpy(output_image_data, input_image_data, BYTES * HEIGHT * WIDTH * sizeof (char));
-	//	return;
-
-	//	memcpy(output_image, input_image, BYTES * HEIGHT * WIDTH * sizeof (float));
-	//	return;
-
-	for (i = 0; i < HEIGHT; i++)
-	{
-		for (j = 0; j < WIDTH; j++)
-		{
-			for (c = 0; c < CHANNELS; c++)
-			{
-				float value = 0.0;
-
-				for (p = -1; p <= 1; p++)
-				{
-					if (i - p < 0 || i - p > HEIGHT - 1)
-						continue;
-
-					for (q = -1; q <= 1; q++)
-					{
-						if (j - q < 0 || j - q > WIDTH - 1)
-							continue;
-
-						value += input_image[i - p][j - q][c] * filter[p + 1][q + 1];
-					}
-				}
-
-				output_image[i][j][c] = value;
-			}
-		}
-	}
-}
 
 //void split_channels()
 //{
