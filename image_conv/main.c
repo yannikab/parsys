@@ -20,7 +20,7 @@
 #define CHANNELS 3
 
 #define B 1
-static const float filter[3][3] = {0.0625, 0.125, 0.0625, 0.125, 0.25, 0.125, 0.0625, 0.125, 0.0625};
+static const float filter[3][3] = {0.0625f, 0.125f, 0.0625f, 0.125f, 0.25f, 0.125f, 0.0625f, 0.125f, 0.0625f};
 
 #define ITERATIONS 5
 
@@ -28,11 +28,7 @@ static const float filter[3][3] = {0.0625, 0.125, 0.0625, 0.125, 0.25, 0.125, 0.
 #define OUTFILENAME "waterfall_1920_2520_out.raw"
 #define STRSIZE 255
 
-//void apply_filter(char *image_data_out, const char *image_data_in, unsigned int height, unsigned int width);
-//void split_channels();
-//float h(int p, int q);
-//float in(unsigned int i, unsigned int j, unsigned int b);
-//void out(unsigned int i, unsigned int j, unsigned int b, float value);
+#define BORDER false
 
 bool alloc_uchar_array(unsigned char ***array, int rows, int columns, int channels)
 {
@@ -161,6 +157,12 @@ bool write_channels(float (**input_image_data)[CHANNELS], int height, int width)
 
 	bool ok = true;
 
+	if (!BORDER)
+	{
+		height = height - 2 * B;
+		width = width - 2 * B;
+	}
+
 	/* Create one output buffer per channel. */
 
 	unsigned char **output_buffer[CHANNELS];
@@ -173,7 +175,7 @@ bool write_channels(float (**input_image_data)[CHANNELS], int height, int width)
 	for (c = 0; ok && c < CHANNELS; c++)
 		for (i = 0; i < height; i++)
 			for (j = 0; j < width; j++)
-				output_buffer[c][i][j] = (char) input_image_data[i][j][c];
+				output_buffer[c][i][j] = (char) input_image_data[i + (BORDER ? 0 : B)][j + (BORDER ? 0 : B)][c];
 
 	/* Create filename for each output channel. */
 
@@ -237,6 +239,7 @@ bool write_channels(float (**input_image_data)[CHANNELS], int height, int width)
 	}
 
 	/* Free memory for filenames. */
+
 	for (c = 0; c < CHANNELS; c++)
 	{
 		free(out_filename[c]);
@@ -353,7 +356,7 @@ int main(int argc, char** argv)
 
 	/* Read input file into buffer. */
 
-	char (**input_buffer)[CHANNELS];
+	unsigned char (**input_buffer)[CHANNELS];
 
 	if (ok)
 		ok = read_image((unsigned char ***) &input_buffer);
@@ -372,10 +375,13 @@ int main(int argc, char** argv)
 
 	/* Convert input. */
 
-	for (c = 0; ok && c < CHANNELS; c++)
-		for (i = 0; i < HEIGHT; i++)
-			for (j = 0; j < WIDTH; j++)
-				output_image_data[i + B][j + B][c] = (float) input_buffer[i][j][c];
+	if (ok)
+	{
+		for (c = 0; c < CHANNELS; c++)
+			for (i = 0; i < HEIGHT; i++)
+				for (j = 0; j < WIDTH; j++)
+					output_image_data[i + B][j + B][c] = (float) input_buffer[i][j][c];
+	}
 
 	/* Start timing. */
 
@@ -387,68 +393,71 @@ int main(int argc, char** argv)
 
 	/* Apply filter. */
 
-	for (n = 0; n < ITERATIONS; n++)
+	if (ok)
 	{
-		/* Fill borders with outer image data. */
+		for (n = 0; n < ITERATIONS; n++)
+		{
+			/* Fill borders with outer image data. */
 
-		// south
-		for (i = HEIGHT + B; i < HEIGHT + 2 * B; i++)
-			for (j = B; j < B + WIDTH; j++)
-				for (c = 0; c < CHANNELS; c++)
-					output_image_data[i][j][c] = output_image_data[B + HEIGHT - 1][j][c];
+			// south
+			for (i = HEIGHT + B; i < HEIGHT + 2 * B; i++)
+				for (j = B; j < B + WIDTH; j++)
+					for (c = 0; c < CHANNELS; c++)
+						output_image_data[i][j][c] = output_image_data[B + HEIGHT - 1][j][c];
 
-		// north
-		for (i = 0; i < B; i++) // north
-			for (j = B; j < B + WIDTH; j++)
-				for (c = 0; c < CHANNELS; c++)
-					output_image_data[i][j][c] = output_image_data[B][j][c];
+			// north
+			for (i = 0; i < B; i++) // north
+				for (j = B; j < B + WIDTH; j++)
+					for (c = 0; c < CHANNELS; c++)
+						output_image_data[i][j][c] = output_image_data[B][j][c];
 
-		// east
-		for (i = B; i < B + HEIGHT; i++)
-			for (j = WIDTH + B; j < WIDTH + 2 * B; j++)
-				for (c = 0; c < CHANNELS; c++)
-					output_image_data[i][j][c] = output_image_data[i][B + WIDTH - 1][c];
+			// east
+			for (i = B; i < B + HEIGHT; i++)
+				for (j = WIDTH + B; j < WIDTH + 2 * B; j++)
+					for (c = 0; c < CHANNELS; c++)
+						output_image_data[i][j][c] = output_image_data[i][B + WIDTH - 1][c];
 
-		// west
-		for (i = B; i < B + HEIGHT; i++)
-			for (j = 0; j < B; j++)
-				for (c = 0; c < CHANNELS; c++)
-					output_image_data[i][j][c] = output_image_data[i][B][c];
+			// west
+			for (i = B; i < B + HEIGHT; i++)
+				for (j = 0; j < B; j++)
+					for (c = 0; c < CHANNELS; c++)
+						output_image_data[i][j][c] = output_image_data[i][B][c];
 
-		// se
-		for (i = HEIGHT + B; i < HEIGHT + 2 * B; i++)
-			for (j = WIDTH + B; j < WIDTH + 2 * B; j++)
-				for (c = 0; c < CHANNELS; c++)
-					output_image_data[i][j][c] = output_image_data[B + HEIGHT - 1][B + WIDTH - 1][c];
+			// se
+			for (i = HEIGHT + B; i < HEIGHT + 2 * B; i++)
+				for (j = WIDTH + B; j < WIDTH + 2 * B; j++)
+					for (c = 0; c < CHANNELS; c++)
+						output_image_data[i][j][c] = output_image_data[B + HEIGHT - 1][B + WIDTH - 1][c];
 
-		// nw
-		for (i = 0; i < B; i++)
-			for (j = 0; j < B; j++)
-				for (c = 0; c < CHANNELS; c++)
-					output_image_data[i][j][c] = output_image_data[B][B][c];
+			// nw
+			for (i = 0; i < B; i++)
+				for (j = 0; j < B; j++)
+					for (c = 0; c < CHANNELS; c++)
+						output_image_data[i][j][c] = output_image_data[B][B][c];
 
-		// sw
-		for (i = HEIGHT + B; i < HEIGHT + 2 * B; i++)
-			for (j = 0; j < B; j++)
-				for (c = 0; c < CHANNELS; c++)
-					output_image_data[i][j][c] = output_image_data[B + HEIGHT - 1][B][c];
+			// sw
+			for (i = HEIGHT + B; i < HEIGHT + 2 * B; i++)
+				for (j = 0; j < B; j++)
+					for (c = 0; c < CHANNELS; c++)
+						output_image_data[i][j][c] = output_image_data[B + HEIGHT - 1][B][c];
 
-		// ne
-		for (i = 0; i < B; i++)
-			for (j = WIDTH + B; j < WIDTH + 2 * B; j++)
-				for (c = 0; c < CHANNELS; c++)
-					output_image_data[i][j][c] = output_image_data[B][B + WIDTH - 1][c];
+			// ne
+			for (i = 0; i < B; i++)
+				for (j = WIDTH + B; j < WIDTH + 2 * B; j++)
+					for (c = 0; c < CHANNELS; c++)
+						output_image_data[i][j][c] = output_image_data[B][B + WIDTH - 1][c];
 
-		/* Use previous output as new input. */
+			/* Use previous output as new input. */
 
-		float (**tmp)[CHANNELS];
-		tmp = input_image_data;
-		input_image_data = output_image_data;
-		output_image_data = tmp;
+			float (**tmp)[CHANNELS];
+			tmp = input_image_data;
+			input_image_data = output_image_data;
+			output_image_data = tmp;
 
-		apply_inner_filter(output_image_data, input_image_data, B + HEIGHT + B, B + WIDTH + B);
+			apply_inner_filter(output_image_data, input_image_data, B + HEIGHT + B, B + WIDTH + B);
 
-		apply_outer_filter(output_image_data, input_image_data, B + HEIGHT + B, B + WIDTH + B);
+			apply_outer_filter(output_image_data, input_image_data, B + HEIGHT + B, B + WIDTH + B);
+		}
 	}
 
 	/* Stop time measurement, print time. */
@@ -462,15 +471,3 @@ int main(int argc, char** argv)
 
 	return (EXIT_SUCCESS);
 }
-
-
-//void split_channels()
-//{
-//	unsigned int i, j, c;
-//
-//	for (i = 0; i < HEIGHT; i++)
-//		for (j = 0; j < WIDTH; j++)
-//			for (c = 0; c < CHANNELS; c++)
-//				output_channel[c][i][j] = output_buffer[i][j][c];
-//	//				*(output_channel[c] + i * WIDTH + j) = *(output_image_data + CHANNELS * (i * WIDTH + j) + c);
-//}
