@@ -1,0 +1,6 @@
+erato/
+*/build/
+*/dist/
+*.stackdump
+serial/
+parallel/

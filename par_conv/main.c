@@ -25,7 +25,8 @@ static const float filter[3][3] = {0.0625f, 0.125f, 0.0625f, 0.125f, 0.25f, 0.12
 
 #define INFILENAME "waterfall_1920_2520.raw"
 #define OUTFILENAME "waterfall_1920_2520_out.raw"
-#define STRSIZE 255
+#define OUTDIR "../parallel/"
+#define STRSIZE 512
 
 bool alloc_uchar_array(unsigned char ***array, int rows, int columns, int channels)
 {
@@ -184,11 +185,13 @@ bool write_channels(float (**input_image_data)[CHANNELS], int height, int width)
 		{
 			out_filename[c][0] = '\0';
 
-			char s[STRSIZE];
+			strcat(out_filename[c], OUTDIR);
 
+			char s[STRSIZE];
 			s[0] = '\0';
-			sprintf(s, "../parallel/%d", c);
+			sprintf(s, "%d", c);
 			strcat(out_filename[c], s);
+
 			strcat(out_filename[c], "_");
 
 			strcat(out_filename[c], OUTFILENAME);
@@ -218,16 +221,34 @@ bool write_channels(float (**input_image_data)[CHANNELS], int height, int width)
 		}
 	}
 
-	/* Convert output files to tiff format. */
+	/* Convert output files to tiff format (ImageMagick). */
 
 	char command[STRSIZE];
 	for (c = 0; ok && c < CHANNELS; c++)
 	{
 		command[0] = '\0';
-		sprintf(command, "raw2tiff -l %d -w %d %s %s.tiff", height, width, out_filename[c], out_filename[c]);
+		//		sprintf(command, "raw2tiff -l %d -w %d %s %s.tiff", height, width, out_filename[c], out_filename[c]);
+		sprintf(command, "convert -depth 8 -size %dx%d gray:%s -compress lzw %s.tiff", width, height, out_filename[c], out_filename[c]);
 		printf("%s\n", command);
 		system(command);
 	}
+
+	/* Merge individual channel tiffs to a single tiff (ImageMagick). */
+
+	command[0] = '\0';
+	sprintf(command, "convert");
+	for (c = 0; ok && c < CHANNELS; c++)
+	{
+		strcat(command, " ");
+		strcat(command, out_filename[c]);
+		strcat(command, ".tiff");
+	}
+	strcat(command, " -set colorspace RGB -combine -set colorspace sRGB ");
+	strcat(command, OUTDIR);
+	strcat(command, OUTFILENAME);
+	strcat(command, ".tiff");
+	printf("%s\n", command);
+	system(command);
 
 	/* Calculate md5sums. */
 
