@@ -22,7 +22,7 @@
 #define B 1
 static const float filter[3][3] = {0.0625f, 0.125f, 0.0625f, 0.125f, 0.25f, 0.125f, 0.0625f, 0.125f, 0.0625f};
 
-#define ITERATIONS 5
+#define ITERATIONS 15
 
 #define INFILENAME "waterfall_1920_2520.raw"
 #define OUTFILENAME "waterfall_1920_2520_out.raw"
@@ -89,7 +89,7 @@ void dealloc_uchar_array(unsigned char ***array)
 	*array = NULL;
 }
 
-void dealloc_float_array(unsigned char ***array)
+void dealloc_float_array(float ***array)
 {
 	assert(array != NULL);
 
@@ -235,6 +235,17 @@ bool write_channels(float (**input_image_data)[CHANNELS], int height, int width)
 		command[0] = '\0';
 		sprintf(command, "raw2tiff -l %d -w %d %s %s.tiff", height, width, out_filename[c], out_filename[c]);
 		printf("%s\n", command);
+		system(command);
+	}
+
+	/* Calculate md5sums. */
+
+	for (c = 0; ok && c < CHANNELS; c++)
+	{
+		command[0] = '\0';
+		//		sprintf(command, "md5sum %s %s.tiff", out_filename[c], out_filename[c]);
+		sprintf(command, "md5sum %s", out_filename[c]);
+		//		printf("%s\n", command);
 		system(command);
 	}
 
