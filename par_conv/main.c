@@ -21,7 +21,7 @@
 #define B 1
 static const float filter[3][3] = {0.0625f, 0.125f, 0.0625f, 0.125f, 0.25f, 0.125f, 0.0625f, 0.125f, 0.0625f};
 
-#define ITERATIONS 5
+#define ITERATIONS 15
 
 #define INFILENAME "waterfall_1920_2520.raw"
 #define OUTFILENAME "waterfall_1920_2520_out.raw"
@@ -86,7 +86,7 @@ void dealloc_uchar_array(unsigned char ***array)
 	*array = NULL;
 }
 
-void dealloc_float_array(unsigned char ***array)
+void dealloc_float_array(float ***array)
 {
 	assert(array != NULL);
 
@@ -229,8 +229,19 @@ bool write_channels(float (**input_image_data)[CHANNELS], int height, int width)
 		system(command);
 	}
 
+	/* Calculate md5sums. */
+
+	for (c = 0; ok && c < CHANNELS; c++)
+	{
+		command[0] = '\0';
+		//		sprintf(command, "md5sum %s %s.tiff", out_filename[c], out_filename[c]);
+		sprintf(command, "md5sum %s", out_filename[c]);
+		//		printf("%s\n", command);
+		system(command);
+	}
+
 	/* Free memory for filenames. */
-	
+
 	for (c = 0; c < CHANNELS; c++)
 	{
 		free(out_filename[c]);
@@ -425,38 +436,55 @@ int main(int argc, char** argv)
 {
 	int size, rank, master;
 	int i, j, c, r, n;
+	int (*coords)[2];
 
 	MPI_Init(&argc, &argv);
 
 	MPI_Comm_size(MPI_COMM_WORLD, &size);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	//	printf("%d %d\n", size, rank);
 
 	master = size - 1;
 
-	int total_area = WIDTH * HEIGHT;
-	int local_area = total_area / (size - 1);
+	//	int total_area = WIDTH * HEIGHT;
+	//	int local_area = total_area / (size - 1);
 
-	int s = 1;
-	while (s * s * local_area != total_area)
-		s++;
+	if (argc != 3)
+		return (EXIT_FAILURE);
 
-	int local_width = WIDTH / s;
-	int local_height = HEIGHT / s;
+	int rows = atoi(argv[1]);
+	int columns = atoi(argv[2]);
 
-	//	printf("%d %d\n", local_width, local_height);
+	if (rows * columns != size - 1)
+		return (EXIT_FAILURE);
 
-	/* Define s x s cartesian topology of slaves, excluding master node which is last in rank. */
+	/* Allocate memory for coordinates map. */
+	coords = malloc(rows * columns * sizeof (*coords));
+	if (coords == NULL)
+		return (EXIT_FAILURE);
+
+	//	printf("%d %d\n", rows, columns);
+
+	//	int s = 1;
+	//	while (s * s * local_area != total_area)
+	//		s++;
+
+	int local_width = WIDTH / columns;
+	int local_height = HEIGHT / rows;
 
 	MPI_Comm comm_slaves;
 	int ndims = 2;
-	int dims[] = {s, s};
+	int dims[] = {rows, columns};
 	int periods[] = {0, 0};
 	MPI_Cart_create(MPI_COMM_WORLD, ndims, dims, periods, true, &comm_slaves);
+	//	printf("%d %d\n", rank, comm_slaves);
 
 	MPI_Status status;
 
 	if (rank == master)
 	{
+		printf("local_width: %d, local_height: %d\n", local_width, local_height);
+
 		unsigned char (**input_buffer)[CHANNELS];
 
 		/* Read input image. */
@@ -478,40 +506,38 @@ int main(int argc, char** argv)
 		MPI_Type_vector(local_height, local_width * CHANNELS, WIDTH * CHANNELS, MPI_FLOAT, &local_image_t);
 		MPI_Type_commit(&local_image_t);
 
+		/* Receive and store cartesian coordinates from each slave process. */
+
+		for (r = 0; r < rows * columns; r++)
+		{
+			//			printf("size:%d, rank:%d\n", size, r);
+			MPI_Recv(coords[r], 2, MPI_INT, r, 0, MPI_COMM_WORLD, &status);
+			printf("rank %d row:%d col:%d\n", r, coords[r][0], coords[r][1]);
+		}
+
 		/* Send each subarray to corresponding process. */
 
-		//		printf("Master: %d \n", rank);
-
-		for (r = 0; r < size; r++)
-		{
-			if (r == master)
-				continue;
-
-			//			int d;
-			//			MPI_Send(&d, 1, MPI_INT, r, 0, MPI_COMM_WORLD);
-			int x = r % s;
-			int y = r / s;
-			MPI_Send(&(input_image_data[y * local_height][x * local_width][0]), 1, local_image_t, r, 0, MPI_COMM_WORLD);
-
-			//			printf("Send returned: %d \n", rank);
-		}
+		for (r = 0; r < rows * columns; r++)
+			MPI_Send(&(input_image_data[coords[r][0] * local_height][coords[r][1] * local_width][0]), 1, local_image_t, r, 0, MPI_COMM_WORLD);
 
 		/* Receive processed output from slave nodes. */
 
-		for (r = 0; r < size; r++)
-		{
-			if (r == master)
-				continue;
-
-			int x = r % s;
-			int y = r / s;
-			MPI_Recv(&(input_image_data[y * local_height][x * local_width][0]), 1, local_image_t, r, 0, MPI_COMM_WORLD, &status);
-		}
+		for (r = 0; r < size && r != master; r++)
+			MPI_Recv(&(input_image_data[coords[r][0] * local_height][coords[r][1] * local_width][0]), 1, local_image_t, r, 0, MPI_COMM_WORLD, &status);
 
 		write_channels(input_image_data, HEIGHT, WIDTH);
 
 	} else
 	{
+		/* Send cartesian coordinates to master. */
+
+		int cart_coords[2];
+
+		MPI_Cart_coords(comm_slaves, rank, 2, cart_coords);
+		MPI_Send(cart_coords, 2, MPI_INT, master, 0, MPI_COMM_WORLD);
+
+		/* Allocate two arrays for image data (input, output). */
+
 		float (**input_image_data)[CHANNELS];
 		alloc_float_array((float ***) &input_image_data, B + local_height + B, B + local_width + B, CHANNELS);
 
@@ -553,14 +579,17 @@ int main(int argc, char** argv)
 
 		get_neighbors(comm_slaves, &r_n, &r_s, &r_e, &r_w, &r_nw, &r_se, &r_ne, &r_sw);
 
-		//		printf("rank: %d\n", rank);
-		//		printf("north: %d, south: %d, east: %d, west: %d\n", north, south, east, west);
-		//		printf("nw: %d, se: %d, ne: %d, sw: %d\n", nw, se, ne, sw);
+		//		if (rank == 3)
+		//		{
+		//			printf("rank: %d\n", rank);
+		//			printf("north: %d, south: %d, east: %d, west: %d\n", r_n, r_s, r_e, r_w);
+		//			printf("nw: %d, se: %d, ne: %d, sw: %d\n", r_nw, r_se, r_ne, r_sw);
+		//		}
 
 		bool even_row = in_even_row(rank, comm_slaves);
 		bool even_column = in_even_column(rank, comm_slaves);
 
-		double start, finish, elapsed, max_elapsed;
+		double start, finish, elapsed, min_elapsed, max_elapsed, avg_elapsed;
 
 		MPI_Barrier(comm_slaves);
 		start = MPI_Wtime();
@@ -569,6 +598,8 @@ int main(int argc, char** argv)
 
 		for (n = 0; n < ITERATIONS; n++)
 		{
+			/* Send / receive vertical data. */
+
 			if (even_row)
 			{
 				if (r_s != MPI_PROC_NULL) // sendrecv south
@@ -593,54 +624,6 @@ int main(int argc, char** argv)
 						for (j = B; j < B + local_width; j++)
 							for (c = 0; c < CHANNELS; c++)
 								output_image_data[i][j][c] = output_image_data[B][j][c];
-				}
-
-				if (r_se != MPI_PROC_NULL) // sendrecv southeast
-				{
-					MPI_Send(&(output_image_data[local_height][local_width][0]), 1, corner_t, r_se, 0, comm_slaves);
-					MPI_Recv(&(output_image_data[local_height + B][local_width + B][0]), 1, corner_t, r_se, 0, comm_slaves, &status);
-				} else // fill border buffer with edge image data
-				{
-					for (i = local_height + B; i < local_height + 2 * B; i++)
-						for (j = local_width + B; j < local_width + 2 * B; j++)
-							for (c = 0; c < CHANNELS; c++)
-								output_image_data[i][j][c] = output_image_data[B + local_height - 1][B + local_width - 1][c];
-				}
-
-				if (r_nw != MPI_PROC_NULL) // sendrecv northwest
-				{
-					MPI_Send(&(output_image_data[B][B][0]), 1, corner_t, r_nw, 0, comm_slaves);
-					MPI_Recv(&(output_image_data[0][0][0]), 1, corner_t, r_nw, 0, comm_slaves, &status);
-				} else // fill border buffer with edge image data
-				{
-					for (i = 0; i < B; i++)
-						for (j = 0; j < B; j++)
-							for (c = 0; c < CHANNELS; c++)
-								output_image_data[i][j][c] = output_image_data[B][B][c];
-				}
-
-				if (r_sw != MPI_PROC_NULL) // sendrecv southwest
-				{
-					MPI_Send(&(output_image_data[local_height][B][0]), 1, corner_t, r_sw, 0, comm_slaves);
-					MPI_Recv(&(output_image_data[local_height + B][0][0]), 1, corner_t, r_sw, 0, comm_slaves, &status);
-				} else // fill border buffer with edge image data
-				{
-					for (i = local_height + B; i < local_height + 2 * B; i++)
-						for (j = 0; j < B; j++)
-							for (c = 0; c < CHANNELS; c++)
-								output_image_data[i][j][c] = output_image_data[B + local_height - 1][B][c];
-				}
-
-				if (r_ne != MPI_PROC_NULL) // sendrecv northeast
-				{
-					MPI_Send(&(output_image_data[B][local_width][0]), 1, corner_t, r_ne, 0, comm_slaves);
-					MPI_Recv(&(output_image_data[0][local_width + B][0]), 1, corner_t, r_ne, 0, comm_slaves, &status);
-				} else // fill border buffer with edge image data
-				{
-					for (i = 0; i < B; i++)
-						for (j = local_width + B; j < local_width + 2 * B; j++)
-							for (c = 0; c < CHANNELS; c++)
-								output_image_data[i][j][c] = output_image_data[B][B + local_width - 1][c];
 				}
 			} else // odd row
 			{
@@ -667,55 +650,9 @@ int main(int argc, char** argv)
 							for (c = 0; c < CHANNELS; c++)
 								output_image_data[i][j][c] = output_image_data[B + local_height - 1][j][c];
 				}
-
-				if (r_nw != MPI_PROC_NULL) // sendrecv northwest
-				{
-					MPI_Recv(&(output_image_data[0][0][0]), 1, corner_t, r_nw, 0, comm_slaves, &status);
-					MPI_Send(&(output_image_data[B][B][0]), 1, corner_t, r_nw, 0, comm_slaves);
-				} else // fill border buffer with edge image data
-				{
-					for (i = 0; i < B; i++)
-						for (j = 0; j < B; j++)
-							for (c = 0; c < CHANNELS; c++)
-								output_image_data[i][j][c] = output_image_data[B][B][c];
-				}
-
-				if (r_se != MPI_PROC_NULL) // sendrecv southeast
-				{
-					MPI_Recv(&(output_image_data[local_height + B][local_width + B][0]), 1, corner_t, r_se, 0, comm_slaves, &status);
-					MPI_Send(&(output_image_data[local_height][local_width][0]), 1, corner_t, r_se, 0, comm_slaves);
-				} else // fill border buffer with edge image data
-				{
-					for (i = local_height + B; i < local_height + 2 * B; i++)
-						for (j = local_width + B; j < local_width + 2 * B; j++)
-							for (c = 0; c < CHANNELS; c++)
-								output_image_data[i][j][c] = output_image_data[B + local_height - 1][B + local_width - 1][c];
-				}
-
-				if (r_ne != MPI_PROC_NULL) // sendrecv northeast
-				{
-					MPI_Recv(&(output_image_data[0][local_width + B][0]), 1, corner_t, r_ne, 0, comm_slaves, &status);
-					MPI_Send(&(output_image_data[B][local_width][0]), 1, corner_t, r_ne, 0, comm_slaves);
-				} else // fill border buffer with edge image data
-				{
-					for (i = 0; i < B; i++)
-						for (j = local_width + B; j < local_width + 2 * B; j++)
-							for (c = 0; c < CHANNELS; c++)
-								output_image_data[i][j][c] = output_image_data[B][B + local_width - 1][c];
-				}
-
-				if (r_sw != MPI_PROC_NULL) // sendrecv southwest
-				{
-					MPI_Recv(&(output_image_data[local_height + B][0][0]), 1, corner_t, r_sw, 0, comm_slaves, &status);
-					MPI_Send(&(output_image_data[local_height][B][0]), 1, corner_t, r_sw, 0, comm_slaves);
-				} else // fill border buffer with edge image data
-				{
-					for (i = local_height + B; i < local_height + 2 * B; i++)
-						for (j = 0; j < B; j++)
-							for (c = 0; c < CHANNELS; c++)
-								output_image_data[i][j][c] = output_image_data[B + local_height - 1][B][c];
-				}
 			}
+
+			/* Send / receive horizontal data. */
 
 			if (even_column)
 			{
@@ -770,6 +707,148 @@ int main(int argc, char** argv)
 				}
 			}
 
+			/* Send / receive diagonal data. */
+
+			if (even_row)
+			{
+				if (r_se != MPI_PROC_NULL) // sendrecv southeast
+				{
+					MPI_Send(&(output_image_data[local_height][local_width][0]), 1, corner_t, r_se, 0, comm_slaves);
+					MPI_Recv(&(output_image_data[local_height + B][local_width + B][0]), 1, corner_t, r_se, 0, comm_slaves, &status);
+				} else // fill border buffer with edge image data
+				{
+					for (i = local_height + B; i < local_height + 2 * B; i++)
+						for (j = local_width + B; j < local_width + 2 * B; j++)
+							for (c = 0; c < CHANNELS; c++)
+								if (r_s != MPI_PROC_NULL) // get data from south (received)
+									output_image_data[i][j][c] = output_image_data[i][B + local_width - 1][c];
+								else if (r_e != MPI_PROC_NULL) // get data from east (received)
+									output_image_data[i][j][c] = output_image_data[B + local_height - 1][j][c];
+								else // use corner data
+									output_image_data[i][j][c] = output_image_data[B + local_height - 1][B + local_width - 1][c];
+				}
+
+				if (r_nw != MPI_PROC_NULL) // sendrecv northwest
+				{
+					MPI_Send(&(output_image_data[B][B][0]), 1, corner_t, r_nw, 0, comm_slaves);
+					MPI_Recv(&(output_image_data[0][0][0]), 1, corner_t, r_nw, 0, comm_slaves, &status);
+				} else // fill border buffer with edge image data
+				{
+					for (i = 0; i < B; i++)
+						for (j = 0; j < B; j++)
+							for (c = 0; c < CHANNELS; c++)
+								if (r_n != MPI_PROC_NULL) // get data from north (received)
+									output_image_data[i][j][c] = output_image_data[i][B][c];
+								else if (r_w != MPI_PROC_NULL) // get data from west (received)
+									output_image_data[i][j][c] = output_image_data[B][j][c];
+								else // use corner data
+									output_image_data[i][j][c] = output_image_data[B][B][c];
+				}
+
+				if (r_sw != MPI_PROC_NULL) // sendrecv southwest
+				{
+					MPI_Send(&(output_image_data[local_height][B][0]), 1, corner_t, r_sw, 0, comm_slaves);
+					MPI_Recv(&(output_image_data[local_height + B][0][0]), 1, corner_t, r_sw, 0, comm_slaves, &status);
+				} else // fill border buffer with edge image data
+				{
+					for (i = local_height + B; i < local_height + 2 * B; i++)
+						for (j = 0; j < B; j++)
+							for (c = 0; c < CHANNELS; c++)
+								if (r_s != MPI_PROC_NULL) // get data from south (received)
+									output_image_data[i][j][c] = output_image_data[i][B][c];
+								else if (r_w != MPI_PROC_NULL) // get data from west (received)
+									output_image_data[i][j][c] = output_image_data[B + local_height - 1][j][c];
+								else // use corner data
+									output_image_data[i][j][c] = output_image_data[B + local_height - 1][B][c];
+				}
+
+				if (r_ne != MPI_PROC_NULL) // sendrecv northeast
+				{
+					MPI_Send(&(output_image_data[B][local_width][0]), 1, corner_t, r_ne, 0, comm_slaves);
+					MPI_Recv(&(output_image_data[0][local_width + B][0]), 1, corner_t, r_ne, 0, comm_slaves, &status);
+				} else // fill border buffer with edge image data
+				{
+					for (i = 0; i < B; i++)
+						for (j = local_width + B; j < local_width + 2 * B; j++)
+							for (c = 0; c < CHANNELS; c++)
+								if (r_n != MPI_PROC_NULL) // get data from north (received)
+									output_image_data[i][j][c] = output_image_data[i][B + local_width - 1][c];
+								else if (r_e != MPI_PROC_NULL) // get data from east (received)
+									output_image_data[i][j][c] = output_image_data[B][j][c];
+								else // use corner data
+									output_image_data[i][j][c] = output_image_data[B][B + local_width - 1][c];
+				}
+			} else // odd row
+			{
+				if (r_nw != MPI_PROC_NULL) // sendrecv northwest
+				{
+					MPI_Recv(&(output_image_data[0][0][0]), 1, corner_t, r_nw, 0, comm_slaves, &status);
+					MPI_Send(&(output_image_data[B][B][0]), 1, corner_t, r_nw, 0, comm_slaves);
+				} else // fill border buffer with edge image data
+				{
+					for (i = 0; i < B; i++)
+						for (j = 0; j < B; j++)
+							for (c = 0; c < CHANNELS; c++)
+								if (r_n != MPI_PROC_NULL) // get data from north (received)
+									output_image_data[i][j][c] = output_image_data[i][B][c];
+								else if (r_w != MPI_PROC_NULL) // get data from west (received)
+									output_image_data[i][j][c] = output_image_data[B][j][c];
+								else // use corner data
+									output_image_data[i][j][c] = output_image_data[B][B][c];
+				}
+
+				if (r_se != MPI_PROC_NULL) // sendrecv southeast
+				{
+					MPI_Recv(&(output_image_data[local_height + B][local_width + B][0]), 1, corner_t, r_se, 0, comm_slaves, &status);
+					MPI_Send(&(output_image_data[local_height][local_width][0]), 1, corner_t, r_se, 0, comm_slaves);
+				} else // fill border buffer with edge image data
+				{
+					for (i = local_height + B; i < local_height + 2 * B; i++)
+						for (j = local_width + B; j < local_width + 2 * B; j++)
+							for (c = 0; c < CHANNELS; c++)
+								if (r_s != MPI_PROC_NULL) // get data from south (received)
+									output_image_data[i][j][c] = output_image_data[i][B + local_width - 1][c];
+								else if (r_e != MPI_PROC_NULL) // get data from east (received)
+									output_image_data[i][j][c] = output_image_data[B + local_height - 1][j][c];
+								else // use corner data
+									output_image_data[i][j][c] = output_image_data[B + local_height - 1][B + local_width - 1][c];
+				}
+
+				if (r_ne != MPI_PROC_NULL) // sendrecv northeast
+				{
+					MPI_Recv(&(output_image_data[0][local_width + B][0]), 1, corner_t, r_ne, 0, comm_slaves, &status);
+					MPI_Send(&(output_image_data[B][local_width][0]), 1, corner_t, r_ne, 0, comm_slaves);
+				} else // fill border buffer with edge image data
+				{
+					for (i = 0; i < B; i++)
+						for (j = local_width + B; j < local_width + 2 * B; j++)
+							for (c = 0; c < CHANNELS; c++)
+								if (r_n != MPI_PROC_NULL) // get data from north (received)
+									output_image_data[i][j][c] = output_image_data[i][B + local_width - 1][c];
+								else if (r_e != MPI_PROC_NULL) // get data from east (received)
+									output_image_data[i][j][c] = output_image_data[B][j][c];
+								else // use corner data
+									output_image_data[i][j][c] = output_image_data[B][B + local_width - 1][c];
+				}
+
+				if (r_sw != MPI_PROC_NULL) // sendrecv southwest
+				{
+					MPI_Recv(&(output_image_data[local_height + B][0][0]), 1, corner_t, r_sw, 0, comm_slaves, &status);
+					MPI_Send(&(output_image_data[local_height][B][0]), 1, corner_t, r_sw, 0, comm_slaves);
+				} else // fill border buffer with edge image data
+				{
+					for (i = local_height + B; i < local_height + 2 * B; i++)
+						for (j = 0; j < B; j++)
+							for (c = 0; c < CHANNELS; c++)
+								if (r_s != MPI_PROC_NULL) // get data from south (received)
+									output_image_data[i][j][c] = output_image_data[i][B][c];
+								else if (r_w != MPI_PROC_NULL) // get data from west (received)
+									output_image_data[i][j][c] = output_image_data[B + local_height - 1][j][c];
+								else // use corner data
+									output_image_data[i][j][c] = output_image_data[B + local_height - 1][B][c];
+				}
+			}
+
 			/* Use previous output as new input. */
 
 			float (**tmp)[CHANNELS];
@@ -786,10 +865,17 @@ int main(int argc, char** argv)
 
 		elapsed = finish - start;
 
+		MPI_Reduce(&elapsed, &min_elapsed, 1, MPI_DOUBLE, MPI_MIN, 0, comm_slaves);
 		MPI_Reduce(&elapsed, &max_elapsed, 1, MPI_DOUBLE, MPI_MAX, 0, comm_slaves);
+		MPI_Reduce(&elapsed, &avg_elapsed, 1, MPI_DOUBLE, MPI_SUM, 0, comm_slaves);
+		avg_elapsed /= rows * columns;
+
+		printf("Rank %d time elapsed: %lf seconds\n", rank, elapsed);
+
+		MPI_Barrier(comm_slaves);
 
 		if (rank == 0)
-			printf("Time elapsed: %lf seconds\n", max_elapsed);
+			printf("Min: %lf, Max: %lf, Avg: %lf seconds\n", min_elapsed, max_elapsed, avg_elapsed);
 
 		MPI_Send(&(output_image_data[B][B][0]), 1, inner_image_t, master, 0, MPI_COMM_WORLD);
 	}
