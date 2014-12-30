@@ -207,6 +207,8 @@ bool write_channels(float (**input_image_data)[CHANNELS], int height, int width)
 		}
 	}
 
+	/* Write out each channel to a separate raw file. */
+
 	for (c = 0; ok && c < CHANNELS; c++)
 	{
 		out_fp[c] = fopen(out_filename[c], "wb");
@@ -252,7 +254,7 @@ bool write_channels(float (**input_image_data)[CHANNELS], int height, int width)
 		strcat(command, out_filename[c]);
 		strcat(command, ".tiff");
 	}
-	strcat(command, " -set colorspace RGB -combine -set colorspace sRGB ");
+	strcat(command, " -combine ");
 	strcat(command, OUTDIR);
 	strcat(command, OUTFILENAME);
 	strcat(command, ".tiff");
@@ -485,6 +487,8 @@ int main(int argc, char** argv)
 			tmp = input_image_data;
 			input_image_data = output_image_data;
 			output_image_data = tmp;
+
+			/* Apply filter. */
 
 			apply_inner_filter(output_image_data, input_image_data, B + HEIGHT + B, B + WIDTH + B);
 
