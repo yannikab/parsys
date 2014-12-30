@@ -223,9 +223,22 @@ bool write_channels(float (**input_image_data)[CHANNELS], int height, int width)
 		}
 	}
 
+	/* Calculate md5sums. */
+
+	printf("\n");
+	char command[STRSIZE];
+	for (c = 0; ok && c < CHANNELS; c++)
+	{
+		command[0] = '\0';
+		//		sprintf(command, "md5sum %s %s.tiff", out_filename[c], out_filename[c]);
+		sprintf(command, "md5sum %s", out_filename[c]);
+		//		printf("%s\n", command);
+		system(command);
+	}
+
 	/* Convert output files to tiff format (ImageMagick). */
 
-	char command[STRSIZE];
+	printf("\n");
 	for (c = 0; ok && c < CHANNELS; c++)
 	{
 		command[0] = '\0';
@@ -251,18 +264,8 @@ bool write_channels(float (**input_image_data)[CHANNELS], int height, int width)
 	strcat(command, ".tiff");
 	printf("%s\n", command);
 	system(command);
-
-	/* Calculate md5sums. */
-
-	for (c = 0; ok && c < CHANNELS; c++)
-	{
-		command[0] = '\0';
-		//		sprintf(command, "md5sum %s %s.tiff", out_filename[c], out_filename[c]);
-		sprintf(command, "md5sum %s", out_filename[c]);
-		//		printf("%s\n", command);
-		system(command);
-	}
-
+	printf("\n");
+	
 	/* Free memory for filenames. */
 
 	for (c = 0; c < CHANNELS; c++)
@@ -506,7 +509,7 @@ int main(int argc, char** argv)
 
 	if (rank == master)
 	{
-		printf("local_width: %d, local_height: %d\n", local_width, local_height);
+		printf("\nlocal_width: %d, local_height: %d\n", local_width, local_height);
 
 		unsigned char (**input_buffer)[CHANNELS];
 
@@ -531,12 +534,14 @@ int main(int argc, char** argv)
 
 		/* Receive and store cartesian coordinates from each slave process. */
 
+		printf("\n");
 		for (r = 0; r < rows * columns; r++)
 		{
 			//			printf("size:%d, rank:%d\n", size, r);
 			MPI_Recv(coords[r], 2, MPI_INT, r, 0, MPI_COMM_WORLD, &status);
 			printf("rank %d row:%d col:%d\n", r, coords[r][0], coords[r][1]);
 		}
+		printf("\n");
 
 		/* Send each subarray to corresponding process. */
 

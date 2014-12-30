@@ -232,9 +232,22 @@ bool write_channels(float (**input_image_data)[CHANNELS], int height, int width)
 		}
 	}
 
+	/* Calculate md5sums. */
+
+	printf("\n");
+	char command[STRSIZE];
+	for (c = 0; ok && c < CHANNELS; c++)
+	{
+		command[0] = '\0';
+		//		sprintf(command, "md5sum %s %s.tiff", out_filename[c], out_filename[c]);
+		sprintf(command, "md5sum %s", out_filename[c]);
+		//		printf("%s\n", command);
+		system(command);
+	}
+
 	/* Convert output files to tiff format (ImageMagick). */
 
-	char command[STRSIZE];
+	printf("\n");
 	for (c = 0; ok && c < CHANNELS; c++)
 	{
 		command[0] = '\0';
@@ -260,17 +273,6 @@ bool write_channels(float (**input_image_data)[CHANNELS], int height, int width)
 	strcat(command, ".tiff");
 	printf("%s\n", command);
 	system(command);
-
-	/* Calculate md5sums. */
-
-	for (c = 0; ok && c < CHANNELS; c++)
-	{
-		command[0] = '\0';
-		//		sprintf(command, "md5sum %s %s.tiff", out_filename[c], out_filename[c]);
-		sprintf(command, "md5sum %s", out_filename[c]);
-		//		printf("%s\n", command);
-		system(command);
-	}
 
 	/* Free memory for filenames. */
 
