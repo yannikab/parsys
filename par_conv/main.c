@@ -116,16 +116,20 @@ char *create_file_name(file_type type, int channel)
 {
 	char *file_name = NULL;
 
-	char chan_str[10];
-
 	bool ok = true;
 
-	chan_str[0] = '\0';
-	if (channel != -1)
-		sprintf(chan_str, "%d_", channel);
+	char chan_str[10];
 
-	file_name = malloc(strlen(type == INPUT ? INDIR : OUTDIR) + strlen(chan_str) + strlen(type == INPUT ? INFILENAME : OUTFILENAME) + 1);
-	if (file_name == NULL)
+	chan_str[0] = '\0';
+	if (channel >= 0 && channel < CHANNELS)
+		sprintf(chan_str, "%d_", channel);
+	
+	unsigned int length = 1;
+	length += strlen(type == INPUT ? INDIR : OUTDIR);
+	length += strlen(chan_str);
+	length += strlen(type == INPUT ? INFILENAME : OUTFILENAME);
+
+	if ((file_name = malloc(length)) == NULL)
 	{
 		perror("malloc");
 		ok = false;
@@ -133,7 +137,7 @@ char *create_file_name(file_type type, int channel)
 
 	if (ok)
 	{
-		*file_name = '\0';
+		file_name[0] = '\0';
 
 		strcpy(file_name, type == INPUT ? INDIR : OUTDIR);
 		strcat(file_name, chan_str);
@@ -298,7 +302,7 @@ bool write_channels(float (**input_image_data)[CHANNELS], int height, int width)
 		printf("%s\n", command);
 		ok = (system(command) == 0);
 	}
-	
+
 	printf("\n");
 
 	/* Free memory allocated for filenames. */
