@@ -12,6 +12,8 @@
 #include <string.h>
 #include <assert.h>
 
+#include <unistd.h>
+
 #include <mpi.h>
 
 #define WIDTH 1920
@@ -19,18 +21,26 @@
 #define CHANNELS 3
 
 #define B 1
-static const float filter[3][3] = {0.0625f, 0.125f, 0.0625f, 0.125f, 0.25f, 0.125f, 0.0625f, 0.125f, 0.0625f};
+
+static const float filter[3][3] = {
+	{0.0625f, 0.125f, 0.0625f},
+	{0.125f, 0.25f, 0.125f},
+	{0.0625f, 0.125f, 0.0625f},
+};
 
 #define ITERATIONS 15
 
 #define INFILENAME "waterfall_1920_2520.raw"
 #define OUTFILENAME "waterfall_1920_2520_out.raw"
+
+#define INDIR "../input/1.00x/"
 #define OUTDIR "../parallel/"
+
 #define STRSIZE 512
 
 bool alloc_uchar_array(unsigned char ***array, int rows, int columns, int channels)
 {
-	char *p;
+	unsigned char *p;
 	p = malloc(rows * columns * channels * sizeof (unsigned char));
 	if (p == NULL)
 	{
@@ -96,6 +106,43 @@ void dealloc_float_array(float ***array)
 	*array = NULL;
 }
 
+typedef enum {
+	INPUT,
+	OUTPUT,
+}
+file_type;
+
+char *create_file_name(file_type type, int channel)
+{
+	char *file_name = NULL;
+
+	char chan_str[10];
+
+	bool ok = true;
+
+	chan_str[0] = '\0';
+	if (channel != -1)
+		sprintf(chan_str, "%d_", channel);
+
+	file_name = malloc(strlen(type == INPUT ? INDIR : OUTDIR) + strlen(chan_str) + strlen(type == INPUT ? INFILENAME : OUTFILENAME) + 1);
+	if (file_name == NULL)
+	{
+		perror("malloc");
+		ok = false;
+	}
+
+	if (ok)
+	{
+		*file_name = '\0';
+
+		strcpy(file_name, type == INPUT ? INDIR : OUTDIR);
+		strcat(file_name, chan_str);
+		strcat(file_name, type == INPUT ? INFILENAME : OUTFILENAME);
+	}
+
+	return file_name;
+}
+
 bool read_image(unsigned char ***input_buffer)
 {
 	FILE *in_fp;
@@ -106,19 +153,26 @@ bool read_image(unsigned char ***input_buffer)
 	/* Open input file. */
 
 	in_fp = NULL;
-	if (ok && (in_fp = fopen(INFILENAME, "rb")) == NULL)
+	char *in_file;
+
+	if (ok)
+		ok = (in_file = create_file_name(INPUT, -1)) != NULL;
+
+	if (ok && (in_fp = fopen(in_file, "rb")) == NULL)
 	{
 		perror(INFILENAME);
 		ok = false;
 	}
+
+	free(in_file);
 
 	//	if (ok)
 	//		printf("Input file opened.\n");
 
 	/* Allocate memory for file buffer. */
 
-	if (ok && !alloc_uchar_array(input_buffer, HEIGHT, WIDTH, CHANNELS))
-		ok = false;
+	if (ok)
+		ok = alloc_uchar_array(input_buffer, HEIGHT, WIDTH, CHANNELS);
 
 	//	if (ok)
 	//		printf("Buffer allocated.\n");
@@ -144,15 +198,6 @@ bool write_channels(float (**input_image_data)[CHANNELS], int height, int width)
 {
 	int i, j, c;
 
-	char *out_filename[CHANNELS];
-	FILE * out_fp[CHANNELS];
-
-	for (c = 0; c < CHANNELS; c++)
-	{
-		out_filename[c] = NULL;
-		out_fp[c] = NULL;
-	}
-
 	bool ok = true;
 
 	/* Create one output buffer per channel. */
@@ -164,41 +209,29 @@ bool write_channels(float (**input_image_data)[CHANNELS], int height, int width)
 
 	/* Copy each channel from image, with conversion to byte. */
 
-	for (c = 0; ok && c < CHANNELS; c++)
-		for (i = 0; i < height; i++)
-			for (j = 0; j < width; j++)
-				output_buffer[c][i][j] = (char) input_image_data[i][j][c];
+	if (ok)
+		for (c = 0; c < CHANNELS; c++)
+			for (i = 0; i < height; i++)
+				for (j = 0; j < width; j++)
+					output_buffer[c][i][j] = (char) input_image_data[i][j][c];
 
 	/* Create filename for each output channel. */
 
+	char *out_filename[CHANNELS];
+	for (c = 0; c < CHANNELS; c++)
+		out_filename[c] = NULL;
+
 	for (c = 0; ok && c < CHANNELS; c++)
 	{
-		out_filename[c] = malloc(STRSIZE * sizeof (char));
-
-		if (out_filename[c] == NULL)
-		{
-			perror("malloc");
-			ok = false;
-		}
-
-		if (ok)
-		{
-			out_filename[c][0] = '\0';
-
-			strcat(out_filename[c], OUTDIR);
-
-			char s[STRSIZE];
-			s[0] = '\0';
-			sprintf(s, "%d", c);
-			strcat(out_filename[c], s);
-
-			strcat(out_filename[c], "_");
-
-			strcat(out_filename[c], OUTFILENAME);
-		}
+		out_filename[c] = create_file_name(OUTPUT, c);
+		ok = out_filename[c] != NULL;
 	}
 
 	/* Write out each channel to a separate raw file. */
+
+	FILE * out_fp[CHANNELS];
+	for (c = 0; c < CHANNELS; c++)
+		out_fp[c] = NULL;
 
 	for (c = 0; ok && c < CHANNELS; c++)
 	{
@@ -218,7 +251,7 @@ bool write_channels(float (**input_image_data)[CHANNELS], int height, int width)
 	{
 		if (fclose(out_fp[c]))
 		{
-			fprintf(stderr, "Could not close file: %s", out_filename[c]);
+			fprintf(stderr, "Could not close file: %s\n", out_filename[c]);
 			ok = false;
 		}
 	}
@@ -229,11 +262,10 @@ bool write_channels(float (**input_image_data)[CHANNELS], int height, int width)
 	char command[STRSIZE];
 	for (c = 0; ok && c < CHANNELS; c++)
 	{
-		command[0] = '\0';
-		//		sprintf(command, "md5sum %s %s.tiff", out_filename[c], out_filename[c]);
+		// sprintf(command, "md5sum %s %s.tiff", out_filename[c], out_filename[c]);
 		sprintf(command, "md5sum %s", out_filename[c]);
-		//		printf("%s\n", command);
-		system(command);
+		// printf("%s\n", command);
+		ok = (system(command) == 0);
 	}
 
 	/* Convert output files to tiff format (ImageMagick). */
@@ -241,32 +273,35 @@ bool write_channels(float (**input_image_data)[CHANNELS], int height, int width)
 	printf("\n");
 	for (c = 0; ok && c < CHANNELS; c++)
 	{
-		command[0] = '\0';
-		//		sprintf(command, "raw2tiff -l %d -w %d %s %s.tiff", height, width, out_filename[c], out_filename[c]);
+		// sprintf(command, "raw2tiff -l %d -w %d %s %s.tiff", height, width, out_filename[c], out_filename[c]);
 		sprintf(command, "convert -depth 8 -size %dx%d gray:%s -compress lzw %s.tiff", width, height, out_filename[c], out_filename[c]);
 		printf("%s\n", command);
-		system(command);
+		ok = (system(command) == 0);
 	}
 
 	/* Merge individual channel tiffs to a single tiff (ImageMagick). */
 
-	command[0] = '\0';
 	sprintf(command, "convert");
-	for (c = 0; ok && c < CHANNELS; c++)
+	if (ok)
 	{
-		strcat(command, " ");
-		strcat(command, out_filename[c]);
+		for (c = 0; c < CHANNELS; c++)
+		{
+			strcat(command, " ");
+			strcat(command, out_filename[c]);
+			strcat(command, ".tiff");
+		}
+
+		strcat(command, " -combine ");
+		strcat(command, OUTDIR);
+		strcat(command, OUTFILENAME);
 		strcat(command, ".tiff");
+		printf("%s\n", command);
+		ok = (system(command) == 0);
 	}
-	strcat(command, " -combine ");
-	strcat(command, OUTDIR);
-	strcat(command, OUTFILENAME);
-	strcat(command, ".tiff");
-	printf("%s\n", command);
-	system(command);
-	printf("\n");
 	
-	/* Free memory for filenames. */
+	printf("\n");
+
+	/* Free memory allocated for filenames. */
 
 	for (c = 0; c < CHANNELS; c++)
 	{
@@ -471,6 +506,15 @@ int main(int argc, char** argv)
 	//	printf("%d %d\n", size, rank);
 
 	master = size - 1;
+
+	//	if (rank == master)
+	//	{
+	//		char cwd[1024];
+	//		if (getcwd(cwd, sizeof (cwd)) != NULL)
+	//			fprintf(stdout, "Current working dir: %s\n", cwd);
+	//		else
+	//			perror("getcwd() error");
+	//	}
 
 	//	int total_area = WIDTH * HEIGHT;
 	//	int local_area = total_area / (size - 1);

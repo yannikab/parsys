@@ -36,11 +36,12 @@
       </toolsSet>
       <compileType>
         <cTool>
-          <commandlineTool>mpicc</commandlineTool>
+          <commandlineTool>/usr/local/mpich2/bin/mpicc</commandlineTool>
           <incDir>
             <pElem>/usr/local/mpich2/include</pElem>
           </incDir>
           <commandLine>-mpe=mpilog</commandLine>
+          <warningLevel>2</warningLevel>
         </cTool>
       </compileType>
       <item path="main.c" ex="false" tool="0" flavor2="0">
@@ -55,7 +56,11 @@
       <compileType>
         <cTool>
           <developmentMode>5</developmentMode>
-          <commandlineTool>mpicc</commandlineTool>
+          <commandlineTool>/usr/local/mpich2/bin/mpicc</commandlineTool>
+          <incDir>
+            <pElem>/usr/local/mpich2/include</pElem>
+          </incDir>
+          <warningLevel>2</warningLevel>
         </cTool>
         <ccTool>
           <developmentMode>5</developmentMode>
