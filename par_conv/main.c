@@ -19,9 +19,6 @@
 #define WIDTH 1920
 #define HEIGHT 2520
 
-//#define WIDTH 3840
-//#define HEIGHT 5040
-
 #define CHANNELS 3
 
 #define B 1
@@ -36,9 +33,6 @@ static const float filter[3][3] = {
 
 #define INFILENAME "waterfall_1920_2520.raw"
 #define OUTFILENAME "waterfall_1920_2520_out.raw"
-
-//#define INFILENAME "waterfall_3840_5040.raw"
-//#define OUTFILENAME "waterfall_3840_5040_out.raw"
 
 #define INDIR "/tmp/stud0781/input/1.00x/"
 #define OUTDIR "/tmp/stud0781/parallel/"
