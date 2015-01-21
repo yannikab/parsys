@@ -836,14 +836,10 @@ int main(int argc, char** argv)
 					MPI_Irecv(&(curr_image[local_height + B][local_width + B][0]), 1, corner_t, r_se, 0, comm_slaves, &requests[p++]);
 				} else // fill border buffer with edge image data
 				{
-					for (i = local_height + B; i < local_height + 2 * B; i++)
-						for (j = local_width + B; j < local_width + 2 * B; j++)
-							for (c = 0; c < CHANNELS; c++)
-								if (r_s != MPI_PROC_NULL) // get data from south (received)
-									curr_image[i][j][c] = curr_image[i][B + local_width - 1][c];
-								else if (r_e != MPI_PROC_NULL) // get data from east (received)
-									curr_image[i][j][c] = curr_image[B + local_height - 1][j][c];
-								else // use corner data
+					if (r_s == MPI_PROC_NULL && r_e == MPI_PROC_NULL) // use corner data
+						for (i = local_height + B; i < local_height + 2 * B; i++)
+							for (j = local_width + B; j < local_width + 2 * B; j++)
+								for (c = 0; c < CHANNELS; c++)
 									curr_image[i][j][c] = curr_image[B + local_height - 1][B + local_width - 1][c];
 				}
 
@@ -853,14 +849,10 @@ int main(int argc, char** argv)
 					MPI_Irecv(&(curr_image[0][0][0]), 1, corner_t, r_nw, 0, comm_slaves, &requests[p++]);
 				} else // fill border buffer with edge image data
 				{
-					for (i = 0; i < B; i++)
-						for (j = 0; j < B; j++)
-							for (c = 0; c < CHANNELS; c++)
-								if (r_n != MPI_PROC_NULL) // get data from north (received)
-									curr_image[i][j][c] = curr_image[i][B][c];
-								else if (r_w != MPI_PROC_NULL) // get data from west (received)
-									curr_image[i][j][c] = curr_image[B][j][c];
-								else // use corner data
+					if (r_n == MPI_PROC_NULL && r_w == MPI_PROC_NULL) // use corner data
+						for (i = 0; i < B; i++)
+							for (j = 0; j < B; j++)
+								for (c = 0; c < CHANNELS; c++)
 									curr_image[i][j][c] = curr_image[B][B][c];
 				}
 
@@ -870,14 +862,10 @@ int main(int argc, char** argv)
 					MPI_Irecv(&(curr_image[local_height + B][0][0]), 1, corner_t, r_sw, 0, comm_slaves, &requests[p++]);
 				} else // fill border buffer with edge image data
 				{
-					for (i = local_height + B; i < local_height + 2 * B; i++)
-						for (j = 0; j < B; j++)
-							for (c = 0; c < CHANNELS; c++)
-								if (r_s != MPI_PROC_NULL) // get data from south (received)
-									curr_image[i][j][c] = curr_image[i][B][c];
-								else if (r_w != MPI_PROC_NULL) // get data from west (received)
-									curr_image[i][j][c] = curr_image[B + local_height - 1][j][c];
-								else // use corner data
+					if (r_s == MPI_PROC_NULL && r_w == MPI_PROC_NULL) // use corner data
+						for (i = local_height + B; i < local_height + 2 * B; i++)
+							for (j = 0; j < B; j++)
+								for (c = 0; c < CHANNELS; c++)
 									curr_image[i][j][c] = curr_image[B + local_height - 1][B][c];
 				}
 
@@ -887,14 +875,10 @@ int main(int argc, char** argv)
 					MPI_Irecv(&(curr_image[0][local_width + B][0]), 1, corner_t, r_ne, 0, comm_slaves, &requests[p++]);
 				} else // fill border buffer with edge image data
 				{
-					for (i = 0; i < B; i++)
-						for (j = local_width + B; j < local_width + 2 * B; j++)
-							for (c = 0; c < CHANNELS; c++)
-								if (r_n != MPI_PROC_NULL) // get data from north (received)
-									curr_image[i][j][c] = curr_image[i][B + local_width - 1][c];
-								else if (r_e != MPI_PROC_NULL) // get data from east (received)
-									curr_image[i][j][c] = curr_image[B][j][c];
-								else // use corner data
+					if (r_n == MPI_PROC_NULL && r_e == MPI_PROC_NULL) // use corner data
+						for (i = 0; i < B; i++)
+							for (j = local_width + B; j < local_width + 2 * B; j++)
+								for (c = 0; c < CHANNELS; c++)
 									curr_image[i][j][c] = curr_image[B][B + local_width - 1][c];
 				}
 			} else // odd row
@@ -905,14 +889,10 @@ int main(int argc, char** argv)
 					MPI_Isend(&(curr_image[B][B][0]), 1, corner_t, r_nw, 0, comm_slaves, &requests[p++]);
 				} else // fill border buffer with edge image data
 				{
-					for (i = 0; i < B; i++)
-						for (j = 0; j < B; j++)
-							for (c = 0; c < CHANNELS; c++)
-								if (r_n != MPI_PROC_NULL) // get data from north (received)
-									curr_image[i][j][c] = curr_image[i][B][c];
-								else if (r_w != MPI_PROC_NULL) // get data from west (received)
-									curr_image[i][j][c] = curr_image[B][j][c];
-								else // use corner data
+					if (r_n == MPI_PROC_NULL && r_w == MPI_PROC_NULL) // use corner data
+						for (i = 0; i < B; i++)
+							for (j = 0; j < B; j++)
+								for (c = 0; c < CHANNELS; c++)
 									curr_image[i][j][c] = curr_image[B][B][c];
 				}
 
@@ -922,14 +902,10 @@ int main(int argc, char** argv)
 					MPI_Isend(&(curr_image[local_height][local_width][0]), 1, corner_t, r_se, 0, comm_slaves, &requests[p++]);
 				} else // fill border buffer with edge image data
 				{
-					for (i = local_height + B; i < local_height + 2 * B; i++)
-						for (j = local_width + B; j < local_width + 2 * B; j++)
-							for (c = 0; c < CHANNELS; c++)
-								if (r_s != MPI_PROC_NULL) // get data from south (received)
-									curr_image[i][j][c] = curr_image[i][B + local_width - 1][c];
-								else if (r_e != MPI_PROC_NULL) // get data from east (received)
-									curr_image[i][j][c] = curr_image[B + local_height - 1][j][c];
-								else // use corner data
+					if (r_s == MPI_PROC_NULL && r_e == MPI_PROC_NULL) // use corner data
+						for (i = local_height + B; i < local_height + 2 * B; i++)
+							for (j = local_width + B; j < local_width + 2 * B; j++)
+								for (c = 0; c < CHANNELS; c++)
 									curr_image[i][j][c] = curr_image[B + local_height - 1][B + local_width - 1][c];
 				}
 
@@ -939,14 +915,10 @@ int main(int argc, char** argv)
 					MPI_Isend(&(curr_image[B][local_width][0]), 1, corner_t, r_ne, 0, comm_slaves, &requests[p++]);
 				} else // fill border buffer with edge image data
 				{
-					for (i = 0; i < B; i++)
-						for (j = local_width + B; j < local_width + 2 * B; j++)
-							for (c = 0; c < CHANNELS; c++)
-								if (r_n != MPI_PROC_NULL) // get data from north (received)
-									curr_image[i][j][c] = curr_image[i][B + local_width - 1][c];
-								else if (r_e != MPI_PROC_NULL) // get data from east (received)
-									curr_image[i][j][c] = curr_image[B][j][c];
-								else // use corner data
+					if (r_n == MPI_PROC_NULL && r_e == MPI_PROC_NULL) // use corner data
+						for (i = 0; i < B; i++)
+							for (j = local_width + B; j < local_width + 2 * B; j++)
+								for (c = 0; c < CHANNELS; c++)
 									curr_image[i][j][c] = curr_image[B][B + local_width - 1][c];
 				}
 
@@ -956,14 +928,10 @@ int main(int argc, char** argv)
 					MPI_Isend(&(curr_image[local_height][B][0]), 1, corner_t, r_sw, 0, comm_slaves, &requests[p++]);
 				} else // fill border buffer with edge image data
 				{
-					for (i = local_height + B; i < local_height + 2 * B; i++)
-						for (j = 0; j < B; j++)
-							for (c = 0; c < CHANNELS; c++)
-								if (r_s != MPI_PROC_NULL) // get data from south (received)
-									curr_image[i][j][c] = curr_image[i][B][c];
-								else if (r_w != MPI_PROC_NULL) // get data from west (received)
-									curr_image[i][j][c] = curr_image[B + local_height - 1][j][c];
-								else // use corner data
+					if (r_s == MPI_PROC_NULL && r_w == MPI_PROC_NULL) // use corner data
+						for (i = local_height + B; i < local_height + 2 * B; i++)
+							for (j = 0; j < B; j++)
+								for (c = 0; c < CHANNELS; c++)
 									curr_image[i][j][c] = curr_image[B + local_height - 1][B][c];
 				}
 			}
@@ -976,14 +944,72 @@ int main(int argc, char** argv)
 
 			MPI_Waitall(p, requests, statuses);
 
-			if (slave_rank == 4)
+			//			if (slave_rank == 4)
+			//			{
+			//				for (c = 0; c < p; c++)
+			//					printf("%d:%d ", statuses[c].MPI_SOURCE, statuses[c].count);
+			//				printf("\n");
+			//			}
+
+			/* Handle diagonal border data that require sends/recvs to have been completed. */
+
+			if (r_se == MPI_PROC_NULL) // southeast
 			{
-				for (c = 0; c < p; c++)
-					printf("%d:%d ", statuses[c].MPI_SOURCE, statuses[c].count);
-				printf("\n");
+				if (r_s != MPI_PROC_NULL) // get data from south (received)
+					for (i = local_height + B; i < local_height + 2 * B; i++)
+						for (j = local_width + B; j < local_width + 2 * B; j++)
+							for (c = 0; c < CHANNELS; c++)
+								curr_image[i][j][c] = curr_image[i][B + local_width - 1][c];
+				else if (r_e != MPI_PROC_NULL) // get data from east (received)
+					for (i = local_height + B; i < local_height + 2 * B; i++)
+						for (j = local_width + B; j < local_width + 2 * B; j++)
+							for (c = 0; c < CHANNELS; c++)
+								curr_image[i][j][c] = curr_image[B + local_height - 1][j][c];
 			}
 
-			/* Apply outer filter, requires having border data available. */
+			if (r_nw == MPI_PROC_NULL) // northwest
+			{
+				if (r_n != MPI_PROC_NULL) // get data from north (received)
+					for (i = 0; i < B; i++)
+						for (j = 0; j < B; j++)
+							for (c = 0; c < CHANNELS; c++)
+								curr_image[i][j][c] = curr_image[i][B][c];
+				else if (r_w != MPI_PROC_NULL) // get data from west (received)
+					for (i = 0; i < B; i++)
+						for (j = 0; j < B; j++)
+							for (c = 0; c < CHANNELS; c++)
+								curr_image[i][j][c] = curr_image[B][j][c];
+			}
+
+			if (r_sw == MPI_PROC_NULL) // southwest
+			{
+				if (r_s != MPI_PROC_NULL) // get data from south (received)
+					for (i = local_height + B; i < local_height + 2 * B; i++)
+						for (j = 0; j < B; j++)
+							for (c = 0; c < CHANNELS; c++)
+								curr_image[i][j][c] = curr_image[i][B][c];
+				else if (r_w != MPI_PROC_NULL) // get data from west (received)
+					for (i = local_height + B; i < local_height + 2 * B; i++)
+						for (j = 0; j < B; j++)
+							for (c = 0; c < CHANNELS; c++)
+								curr_image[i][j][c] = curr_image[B + local_height - 1][j][c];
+			}
+
+			if (r_ne == MPI_PROC_NULL) // northeast
+			{
+				if (r_n != MPI_PROC_NULL) // get data from north (received)
+					for (i = 0; i < B; i++)
+						for (j = local_width + B; j < local_width + 2 * B; j++)
+							for (c = 0; c < CHANNELS; c++)
+								curr_image[i][j][c] = curr_image[i][B + local_width - 1][c];
+				else if (r_e != MPI_PROC_NULL) // get data from east (received)
+					for (i = 0; i < B; i++)
+						for (j = local_width + B; j < local_width + 2 * B; j++)
+							for (c = 0; c < CHANNELS; c++)
+								curr_image[i][j][c] = curr_image[B][j][c];
+			}
+
+			/* Apply outer filter, requires having all border data available. */
 
 			apply_outer_filter(prev_image, curr_image, B + local_height + B, B + local_width + B);
 
