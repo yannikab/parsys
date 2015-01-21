@@ -272,7 +272,7 @@ bool write_channels(unsigned char (**file_buffer)[CHANNELS], int height, int wid
 
 	/* Calculate md5sums. */
 
-	printf("\n");
+	// printf("\n");
 	char command[STRSIZE];
 	for (c = 0; ok && c < CHANNELS; c++)
 	{
@@ -284,12 +284,12 @@ bool write_channels(unsigned char (**file_buffer)[CHANNELS], int height, int wid
 
 	/* Convert output files to tiff format (ImageMagick). */
 
-	printf("\n");
+	// printf("\n");
 	for (c = 0; ok && c < CHANNELS; c++)
 	{
 		// sprintf(command, "raw2tiff -l %d -w %d %s %s.tiff", height, width, out_filename[c], out_filename[c]);
 		sprintf(command, "convert -depth 8 -size %dx%d gray:%s -compress lzw %s.tiff", width, height, out_filename[c], out_filename[c]);
-		printf("%s\n", command);
+		// printf("%s\n", command);
 		ok = system(command) == 0;
 	}
 
@@ -310,12 +310,12 @@ bool write_channels(unsigned char (**file_buffer)[CHANNELS], int height, int wid
 		strcat(command, OUTFILENAME);
 		strcat(command, ".tiff");
 
-		printf("%s\n", command);
+		// printf("%s\n", command);
 
 		ok = system(command) == 0;
 	}
 
-	printf("\n");
+	// printf("\n");
 
 	/* Free memory allocated for filenames. */
 
@@ -556,7 +556,7 @@ int main(int argc, char** argv)
 		//		else
 		//			perror("getcwd() error");
 
-		printf("\nlocal_width: %d, local_height: %d\n", local_width, local_height);
+		// printf("\nlocal_width: %d, local_height: %d\n", local_width, local_height);
 
 		unsigned char (**image_buffer)[CHANNELS];
 
@@ -574,14 +574,14 @@ int main(int argc, char** argv)
 
 		unsigned int r;
 
-		printf("\n");
+		// printf("\n");
 		for (r = 0; r < rows * columns; r++)
 		{
 			// printf("size:%d, rank:%d\n", size, r);
 			MPI_Recv(coords[r], 2, MPI_INT, r + 1, 0, MPI_COMM_WORLD, &status);
-			printf("rank %d row:%d col:%d\n", r + 1, coords[r][0], coords[r][1]);
+			// printf("rank %d row:%d col:%d\n", r + 1, coords[r][0], coords[r][1]);
 		}
-		printf("\n");
+		// printf("\n");
 
 		/* Create "subarray" datatype. */
 
@@ -672,9 +672,9 @@ int main(int argc, char** argv)
 
 		get_neighbours(comm_slaves, &r_n, &r_s, &r_e, &r_w, &r_nw, &r_se, &r_ne, &r_sw);
 
-		//		if (rank == 3)
+		//		if (slave_rank == 4)
 		//		{
-		//			printf("rank: %d\n", rank);
+		//			printf("slave_rank: %d\n", slave_rank);
 		//			printf("north: %d, south: %d, east: %d, west: %d\n", r_n, r_s, r_e, r_w);
 		//			printf("nw: %d, se: %d, ne: %d, sw: %d\n", r_nw, r_se, r_ne, r_sw);
 		//		}
@@ -975,7 +975,7 @@ int main(int argc, char** argv)
 			/* Wait for all sends and recvs. */
 
 			MPI_Waitall(p, requests, statuses);
-			
+
 			if (slave_rank == 4)
 			{
 				for (c = 0; c < p; c++)
@@ -986,7 +986,7 @@ int main(int argc, char** argv)
 			/* Apply outer filter, requires having border data available. */
 
 			apply_outer_filter(prev_image, curr_image, B + local_height + B, B + local_width + B);
-			
+
 			/* Switch current / previous image buffers. */
 
 			float (**tmp)[CHANNELS];
@@ -1004,7 +1004,7 @@ int main(int argc, char** argv)
 		MPI_Reduce(&elapsed, &avg_elapsed, 1, MPI_DOUBLE, MPI_SUM, 0, comm_slaves);
 		avg_elapsed /= rows * columns;
 
-		printf("Rank %d time elapsed: %lf seconds\n", rank, elapsed);
+		// printf("Rank %d time elapsed: %lf seconds\n", rank, elapsed);
 
 		MPI_Barrier(comm_slaves);
 
@@ -1019,6 +1019,7 @@ int main(int argc, char** argv)
 					local_buffer[i][j][c] = (unsigned char) curr_image[i][j][c];
 
 		/* Send results back to master. */
+
 		MPI_Send(&(local_buffer[B][B][0]), 1, local_buffer_t, master, 0, MPI_COMM_WORLD);
 	}
 
