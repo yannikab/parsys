@@ -22,4 +22,3 @@ void apply_inner_filter(float (**output_image)[CHANNELS], float (**input_image)[
 void apply_outer_filter(float (**output_image)[CHANNELS], float (**input_image)[CHANNELS], int height, int width);
 
 #endif	/* FILTER_H */
-
