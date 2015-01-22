@@ -4,6 +4,11 @@
     <logicalFolder name="HeaderFiles"
                    displayName="Header Files"
                    projectFiles="true">
+      <itemPath>2d_malloc.h</itemPath>
+      <itemPath>file_io.h</itemPath>
+      <itemPath>filter.h</itemPath>
+      <itemPath>settings.h</itemPath>
+      <itemPath>topology.h</itemPath>
     </logicalFolder>
     <logicalFolder name="ResourceFiles"
                    displayName="Resource Files"
@@ -12,7 +17,14 @@
     <logicalFolder name="SourceFiles"
                    displayName="Source Files"
                    projectFiles="true">
+      <itemPath>2d_malloc.c</itemPath>
+      <itemPath>file_io.c</itemPath>
+      <itemPath>filter.c</itemPath>
       <itemPath>main.c</itemPath>
+      <itemPath>main_async.c</itemPath>
+      <itemPath>main_serial.c</itemPath>
+      <itemPath>main_sync.c</itemPath>
+      <itemPath>topology.c</itemPath>
     </logicalFolder>
     <logicalFolder name="TestFiles"
                    displayName="Test Files"
@@ -44,7 +56,31 @@
           <warningLevel>2</warningLevel>
         </cTool>
       </compileType>
+      <item path="2d_malloc.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="2d_malloc.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="file_io.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="file_io.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="filter.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="filter.h" ex="false" tool="3" flavor2="0">
+      </item>
       <item path="main.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="main_async.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="main_serial.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="main_sync.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="settings.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="topology.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="topology.h" ex="false" tool="3" flavor2="0">
       </item>
     </conf>
     <conf name="Release" type="1">
@@ -60,6 +96,7 @@
           <incDir>
             <pElem>/usr/local/mpich2/include</pElem>
           </incDir>
+          <commandLine>-mpe=mpilog</commandLine>
           <warningLevel>2</warningLevel>
         </cTool>
         <ccTool>
@@ -72,7 +109,31 @@
           <developmentMode>5</developmentMode>
         </asmTool>
       </compileType>
+      <item path="2d_malloc.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="2d_malloc.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="file_io.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="file_io.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="filter.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="filter.h" ex="false" tool="3" flavor2="0">
+      </item>
       <item path="main.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="main_async.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="main_serial.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="main_sync.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="settings.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="topology.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="topology.h" ex="false" tool="3" flavor2="0">
       </item>
     </conf>
   </confs>

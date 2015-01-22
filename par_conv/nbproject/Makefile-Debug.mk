@@ -35,7 +35,14 @@ OBJECTDIR=${CND_BUILDDIR}/${CND_CONF}/${CND_PLATFORM}
 
 # Object Files
 OBJECTFILES= \
-	${OBJECTDIR}/main.o
+	${OBJECTDIR}/2d_malloc.o \
+	${OBJECTDIR}/file_io.o \
+	${OBJECTDIR}/filter.o \
+	${OBJECTDIR}/main.o \
+	${OBJECTDIR}/main_async.o \
+	${OBJECTDIR}/main_serial.o \
+	${OBJECTDIR}/main_sync.o \
+	${OBJECTDIR}/topology.o
 
 
 # C Compiler Flags
@@ -62,10 +69,45 @@ ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/par_conv: ${OBJECTFILES}
 	${MKDIR} -p ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}
 	${LINK.c} -o ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/par_conv ${OBJECTFILES} ${LDLIBSOPTIONS}
 
+${OBJECTDIR}/2d_malloc.o: 2d_malloc.c 
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} "$@.d"
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/2d_malloc.o 2d_malloc.c
+
+${OBJECTDIR}/file_io.o: file_io.c 
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} "$@.d"
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/file_io.o file_io.c
+
+${OBJECTDIR}/filter.o: filter.c 
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} "$@.d"
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/filter.o filter.c
+
 ${OBJECTDIR}/main.o: main.c 
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} "$@.d"
 	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/main.o main.c
+
+${OBJECTDIR}/main_async.o: main_async.c 
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} "$@.d"
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/main_async.o main_async.c
+
+${OBJECTDIR}/main_serial.o: main_serial.c 
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} "$@.d"
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/main_serial.o main_serial.c
+
+${OBJECTDIR}/main_sync.o: main_sync.c 
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} "$@.d"
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/main_sync.o main_sync.c
+
+${OBJECTDIR}/topology.o: topology.c 
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} "$@.d"
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/topology.o topology.c
 
 # Subprojects
 .build-subprojects:
