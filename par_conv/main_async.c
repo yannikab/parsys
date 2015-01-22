@@ -9,6 +9,7 @@
 #include <stdlib.h>
 
 #include <stdbool.h>
+#include <assert.h>
 
 #include <mpi.h>
 
@@ -217,16 +218,18 @@ int main_async(int argc, char** argv)
 
 		/* Apply filter. */
 
-		MPI_Request requests[16];
-		MPI_Status statuses[16];
+		MPI_Request sends[8];
+		MPI_Request recvs[8];
+		MPI_Status send_status[8];
+		MPI_Status recv_status[8];
 
 		unsigned int n;
 
 		for (n = 0; n < ITERATIONS; n++)
 		{
-			/* Index in request and status arrays. */
+			/* Indexes in send/recv and status arrays. */
 
-			unsigned int p = 0;
+			unsigned int p = 0, q = 0;
 
 			/* Send / receive vertical data. */
 
@@ -234,12 +237,12 @@ int main_async(int argc, char** argv)
 			{
 				if (even_row)
 				{
-					MPI_Isend(&(curr_image[height][B][0]), 1, row_t, r_s, 0, comm_slaves, &requests[p++]);
-					MPI_Irecv(&(curr_image[height + B][B][0]), 1, row_t, r_s, 0, comm_slaves, &requests[p++]);
+					MPI_Isend(&(curr_image[height][B][0]), 1, row_t, r_s, 0, comm_slaves, &sends[p++]);
+					MPI_Irecv(&(curr_image[height + B][B][0]), 1, row_t, r_s, 0, comm_slaves, &recvs[q++]);
 				} else // odd row
 				{
-					MPI_Irecv(&(curr_image[height + B][B][0]), 1, row_t, r_s, 0, comm_slaves, &requests[p++]);
-					MPI_Isend(&(curr_image[height][B][0]), 1, row_t, r_s, 0, comm_slaves, &requests[p++]);
+					MPI_Irecv(&(curr_image[height + B][B][0]), 1, row_t, r_s, 0, comm_slaves, &recvs[q++]);
+					MPI_Isend(&(curr_image[height][B][0]), 1, row_t, r_s, 0, comm_slaves, &sends[p++]);
 				}
 			} else // fill border buffer with edge image data
 			{
@@ -253,12 +256,12 @@ int main_async(int argc, char** argv)
 			{
 				if (even_row)
 				{
-					MPI_Isend(&(curr_image[B][B][0]), 1, row_t, r_n, 0, comm_slaves, &requests[p++]);
-					MPI_Irecv(&(curr_image[0][B][0]), 1, row_t, r_n, 0, comm_slaves, &requests[p++]);
+					MPI_Isend(&(curr_image[B][B][0]), 1, row_t, r_n, 0, comm_slaves, &sends[p++]);
+					MPI_Irecv(&(curr_image[0][B][0]), 1, row_t, r_n, 0, comm_slaves, &recvs[q++]);
 				} else // odd row
 				{
-					MPI_Irecv(&(curr_image[0][B][0]), 1, row_t, r_n, 0, comm_slaves, &requests[p++]);
-					MPI_Isend(&(curr_image[B][B][0]), 1, row_t, r_n, 0, comm_slaves, &requests[p++]);
+					MPI_Irecv(&(curr_image[0][B][0]), 1, row_t, r_n, 0, comm_slaves, &recvs[q++]);
+					MPI_Isend(&(curr_image[B][B][0]), 1, row_t, r_n, 0, comm_slaves, &sends[p++]);
 				}
 			} else // fill border buffer with edge image data
 			{
@@ -274,12 +277,12 @@ int main_async(int argc, char** argv)
 			{
 				if (even_column)
 				{
-					MPI_Isend(&(curr_image[B][width][0]), 1, column_t, r_e, 0, comm_slaves, &requests[p++]);
-					MPI_Irecv(&(curr_image[B][width + B][0]), 1, column_t, r_e, 0, comm_slaves, &requests[p++]);
+					MPI_Isend(&(curr_image[B][width][0]), 1, column_t, r_e, 0, comm_slaves, &sends[p++]);
+					MPI_Irecv(&(curr_image[B][width + B][0]), 1, column_t, r_e, 0, comm_slaves, &recvs[q++]);
 				} else // odd column
 				{
-					MPI_Irecv(&(curr_image[B][width + B][0]), 1, column_t, r_e, 0, comm_slaves, &requests[p++]);
-					MPI_Isend(&(curr_image[B][width][0]), 1, column_t, r_e, 0, comm_slaves, &requests[p++]);
+					MPI_Irecv(&(curr_image[B][width + B][0]), 1, column_t, r_e, 0, comm_slaves, &recvs[q++]);
+					MPI_Isend(&(curr_image[B][width][0]), 1, column_t, r_e, 0, comm_slaves, &sends[p++]);
 				}
 			} else // fill border buffer with edge image data
 			{
@@ -293,12 +296,12 @@ int main_async(int argc, char** argv)
 			{
 				if (even_column)
 				{
-					MPI_Isend(&(curr_image[B][B][0]), 1, column_t, r_w, 0, comm_slaves, &requests[p++]);
-					MPI_Irecv(&(curr_image[B][0][0]), 1, column_t, r_w, 0, comm_slaves, &requests[p++]);
+					MPI_Isend(&(curr_image[B][B][0]), 1, column_t, r_w, 0, comm_slaves, &sends[p++]);
+					MPI_Irecv(&(curr_image[B][0][0]), 1, column_t, r_w, 0, comm_slaves, &recvs[q++]);
 				} else // odd column
 				{
-					MPI_Irecv(&(curr_image[B][0][0]), 1, column_t, r_w, 0, comm_slaves, &requests[p++]);
-					MPI_Isend(&(curr_image[B][B][0]), 1, column_t, r_w, 0, comm_slaves, &requests[p++]);
+					MPI_Irecv(&(curr_image[B][0][0]), 1, column_t, r_w, 0, comm_slaves, &recvs[q++]);
+					MPI_Isend(&(curr_image[B][B][0]), 1, column_t, r_w, 0, comm_slaves, &sends[p++]);
 				}
 			} else // fill border buffer with edge image data
 			{
@@ -314,12 +317,12 @@ int main_async(int argc, char** argv)
 			{
 				if (even_row)
 				{
-					MPI_Isend(&(curr_image[height][width][0]), 1, corner_t, r_se, 0, comm_slaves, &requests[p++]);
-					MPI_Irecv(&(curr_image[height + B][width + B][0]), 1, corner_t, r_se, 0, comm_slaves, &requests[p++]);
+					MPI_Isend(&(curr_image[height][width][0]), 1, corner_t, r_se, 0, comm_slaves, &sends[p++]);
+					MPI_Irecv(&(curr_image[height + B][width + B][0]), 1, corner_t, r_se, 0, comm_slaves, &recvs[q++]);
 				} else
 				{ // odd row
-					MPI_Irecv(&(curr_image[height + B][width + B][0]), 1, corner_t, r_se, 0, comm_slaves, &requests[p++]);
-					MPI_Isend(&(curr_image[height][width][0]), 1, corner_t, r_se, 0, comm_slaves, &requests[p++]);
+					MPI_Irecv(&(curr_image[height + B][width + B][0]), 1, corner_t, r_se, 0, comm_slaves, &recvs[q++]);
+					MPI_Isend(&(curr_image[height][width][0]), 1, corner_t, r_se, 0, comm_slaves, &sends[p++]);
 				}
 			} else // fill border buffer with edge image data
 			{
@@ -334,12 +337,12 @@ int main_async(int argc, char** argv)
 			{
 				if (even_row)
 				{
-					MPI_Isend(&(curr_image[B][B][0]), 1, corner_t, r_nw, 0, comm_slaves, &requests[p++]);
-					MPI_Irecv(&(curr_image[0][0][0]), 1, corner_t, r_nw, 0, comm_slaves, &requests[p++]);
+					MPI_Isend(&(curr_image[B][B][0]), 1, corner_t, r_nw, 0, comm_slaves, &sends[p++]);
+					MPI_Irecv(&(curr_image[0][0][0]), 1, corner_t, r_nw, 0, comm_slaves, &recvs[q++]);
 				} else
 				{ // odd row
-					MPI_Irecv(&(curr_image[0][0][0]), 1, corner_t, r_nw, 0, comm_slaves, &requests[p++]);
-					MPI_Isend(&(curr_image[B][B][0]), 1, corner_t, r_nw, 0, comm_slaves, &requests[p++]);
+					MPI_Irecv(&(curr_image[0][0][0]), 1, corner_t, r_nw, 0, comm_slaves, &recvs[q++]);
+					MPI_Isend(&(curr_image[B][B][0]), 1, corner_t, r_nw, 0, comm_slaves, &sends[p++]);
 				}
 			} else // fill border buffer with edge image data
 			{
@@ -354,12 +357,12 @@ int main_async(int argc, char** argv)
 			{
 				if (even_row)
 				{
-					MPI_Isend(&(curr_image[height][B][0]), 1, corner_t, r_sw, 0, comm_slaves, &requests[p++]);
-					MPI_Irecv(&(curr_image[height + B][0][0]), 1, corner_t, r_sw, 0, comm_slaves, &requests[p++]);
+					MPI_Isend(&(curr_image[height][B][0]), 1, corner_t, r_sw, 0, comm_slaves, &sends[p++]);
+					MPI_Irecv(&(curr_image[height + B][0][0]), 1, corner_t, r_sw, 0, comm_slaves, &recvs[q++]);
 				} else
 				{ // odd row
-					MPI_Irecv(&(curr_image[height + B][0][0]), 1, corner_t, r_sw, 0, comm_slaves, &requests[p++]);
-					MPI_Isend(&(curr_image[height][B][0]), 1, corner_t, r_sw, 0, comm_slaves, &requests[p++]);
+					MPI_Irecv(&(curr_image[height + B][0][0]), 1, corner_t, r_sw, 0, comm_slaves, &recvs[q++]);
+					MPI_Isend(&(curr_image[height][B][0]), 1, corner_t, r_sw, 0, comm_slaves, &sends[p++]);
 				}
 			} else // fill border buffer with edge image data
 			{
@@ -374,12 +377,12 @@ int main_async(int argc, char** argv)
 			{
 				if (even_row)
 				{
-					MPI_Isend(&(curr_image[B][width][0]), 1, corner_t, r_ne, 0, comm_slaves, &requests[p++]);
-					MPI_Irecv(&(curr_image[0][width + B][0]), 1, corner_t, r_ne, 0, comm_slaves, &requests[p++]);
+					MPI_Isend(&(curr_image[B][width][0]), 1, corner_t, r_ne, 0, comm_slaves, &sends[p++]);
+					MPI_Irecv(&(curr_image[0][width + B][0]), 1, corner_t, r_ne, 0, comm_slaves, &recvs[q++]);
 				} else
 				{ // odd row
-					MPI_Irecv(&(curr_image[0][width + B][0]), 1, corner_t, r_ne, 0, comm_slaves, &requests[p++]);
-					MPI_Isend(&(curr_image[B][width][0]), 1, corner_t, r_ne, 0, comm_slaves, &requests[p++]);
+					MPI_Irecv(&(curr_image[0][width + B][0]), 1, corner_t, r_ne, 0, comm_slaves, &recvs[q++]);
+					MPI_Isend(&(curr_image[B][width][0]), 1, corner_t, r_ne, 0, comm_slaves, &sends[p++]);
 				}
 			} else // fill border buffer with edge image data
 			{
@@ -390,22 +393,17 @@ int main_async(int argc, char** argv)
 								curr_image[i][j][c] = curr_image[B][B + width - 1][c];
 			}
 
+			assert(p == q); // number of sends should match number of recvs
+			
 			/* Apply inner filter, does not require having border data available. */
 
 			apply_inner_filter(prev_image, curr_image, B + height + B, B + width + B);
 
-			/* Wait for all sends and recvs. */
+			/* Wait for recvs. */
 
-			MPI_Waitall(p, requests, statuses);
+			MPI_Waitall(q, recvs, recv_status);
 
-			//			if (slave_rank == 4)
-			//			{
-			//				for (c = 0; c < p; c++)
-			//					printf("%d:%d ", statuses[c].MPI_SOURCE, statuses[c].count);
-			//				printf("\n");
-			//			}
-
-			/* Handle diagonal border data that require sends/recvs to have been completed. */
+			/* Handle diagonal border data that require recvs to have been completed. */
 
 			if (r_se == MPI_PROC_NULL) // southeast
 			{
@@ -467,6 +465,10 @@ int main_async(int argc, char** argv)
 
 			apply_outer_filter(prev_image, curr_image, B + height + B, B + width + B);
 
+			/* Wait for sends before we switch buffers. */
+			
+			MPI_Waitall(p, sends, send_status);
+			
 			/* Switch current / previous image buffers. */
 
 			float (**tmp)[CHANNELS];
