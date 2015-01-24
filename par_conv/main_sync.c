@@ -61,6 +61,8 @@ int main_sync(int argc, char** argv)
 
 	if (rank == 0) // master
 	{
+		printf("main_sync\n");
+		
 		//		char cwd[1024];
 		//		if (getcwd(cwd, sizeof (cwd)) != NULL)
 		//			fprintf(stdout, "Current working dir: %s\n", cwd);

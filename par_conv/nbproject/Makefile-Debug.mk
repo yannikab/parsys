@@ -40,13 +40,16 @@ OBJECTFILES= \
 	${OBJECTDIR}/filter.o \
 	${OBJECTDIR}/main.o \
 	${OBJECTDIR}/main_async.o \
+	${OBJECTDIR}/main_async_omp.o \
 	${OBJECTDIR}/main_serial.o \
+	${OBJECTDIR}/main_serial_omp.o \
 	${OBJECTDIR}/main_sync.o \
+	${OBJECTDIR}/main_sync_omp.o \
 	${OBJECTDIR}/topology.o
 
 
 # C Compiler Flags
-CFLAGS=-mpe=mpilog
+CFLAGS=-mpe=mpilog -fopenmp
 
 # CC Compiler Flags
 CCFLAGS=
@@ -94,15 +97,30 @@ ${OBJECTDIR}/main_async.o: main_async.c
 	${RM} "$@.d"
 	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/main_async.o main_async.c
 
+${OBJECTDIR}/main_async_omp.o: main_async_omp.c 
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} "$@.d"
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/main_async_omp.o main_async_omp.c
+
 ${OBJECTDIR}/main_serial.o: main_serial.c 
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} "$@.d"
 	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/main_serial.o main_serial.c
 
+${OBJECTDIR}/main_serial_omp.o: main_serial_omp.c 
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} "$@.d"
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/main_serial_omp.o main_serial_omp.c
+
 ${OBJECTDIR}/main_sync.o: main_sync.c 
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} "$@.d"
 	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/main_sync.o main_sync.c
+
+${OBJECTDIR}/main_sync_omp.o: main_sync_omp.c 
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} "$@.d"
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/main_sync_omp.o main_sync_omp.c
 
 ${OBJECTDIR}/topology.o: topology.c 
 	${MKDIR} -p ${OBJECTDIR}

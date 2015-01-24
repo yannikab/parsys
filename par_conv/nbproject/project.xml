@@ -24,17 +24,5 @@
                 <project-formatting-style>false</project-formatting-style>
             </formatting>
         </data>
-        <spellchecker-wordlist xmlns="http://www.netbeans.org/ns/spellchecker-wordlist/1">
-            <word>malloc</word>
-            <word>ok</word>
-            <word>perror</word>
-            <word>printf</word>
-            <word>rb</word>
-            <word>sizeof</word>
-            <word>subarray</word>
-            <word>wb</word>
-            <word>Δεκέμβριος</word>
-            <word>πμ</word>
-        </spellchecker-wordlist>
     </configuration>
 </project>

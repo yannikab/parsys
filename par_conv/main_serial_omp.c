@@ -18,12 +18,14 @@
 #include "file_io.h"
 #include "filter.h"
 
+#include <omp.h>
+
 /*
  * 
  */
-int main_serial(int argc, char** argv)
+int main_serial_omp(int argc, char** argv)
 {
-	printf("main_serial\n");
+	printf("main_serial_omp\n");
 	
 	bool ok = true;
 
@@ -65,12 +67,12 @@ int main_serial(int argc, char** argv)
 
 	t1 = (double) times(&tb1);
 
-	/* Apply filter. */
-
-	unsigned int n;
-	
 	if (ok)
 	{
+		/* Apply filter. */
+
+		unsigned int n;
+
 		for (n = 0; n < ITERATIONS; n++)
 		{
 			/* Fill borders with outer image data. */
@@ -123,9 +125,12 @@ int main_serial(int argc, char** argv)
 					for (c = 0; c < CHANNELS; c++)
 						curr_image[i][j][c] = curr_image[B][B + WIDTH - 1][c];
 
-			/* Apply filter. */
+			/* Apply inner filter, using omp parallel for. */
 
-			apply_inner_filter(prev_image, curr_image, B + HEIGHT + B, B + WIDTH + B);
+#pragma omp parallel num_threads(2)
+			apply_inner_filter_openmp(prev_image, curr_image, B + HEIGHT + B, B + WIDTH + B);
+
+			/* Apply outer filter. */
 
 			apply_outer_filter(prev_image, curr_image, B + HEIGHT + B, B + WIDTH + B);
 

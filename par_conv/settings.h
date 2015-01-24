@@ -19,6 +19,6 @@
 
 #define CHANNELS 3
 
-#define ITERATIONS 15
+#define ITERATIONS 30
 
 #endif	/* SETTINGS_H */

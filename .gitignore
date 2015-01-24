@@ -4,3 +4,7 @@ erato/
 *.stackdump
 serial/
 parallel/
+input/
+lab_cuda/
+openmp-lab/
+openmp/
