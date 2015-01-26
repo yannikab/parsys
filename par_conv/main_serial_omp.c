@@ -25,8 +25,18 @@
  */
 int main_serial_omp(int argc, char** argv)
 {
-	printf("main_serial_omp\n");
-	
+	if (argc != 3)
+	{
+		printf("Usage: %s <iterations> <convergence>\n", argv[0]);
+		return (EXIT_FAILURE);
+	}
+
+	int iterations = atoi(argv[1]);
+	int convergence = atoi(argv[2]);
+
+	printf("main_serial_omp()\n");
+	printf("Iterations: %d, Convergence: %d\n", iterations, convergence);
+
 	bool ok = true;
 
 	/* Read input file into buffer. */
@@ -67,13 +77,13 @@ int main_serial_omp(int argc, char** argv)
 
 	t1 = (double) times(&tb1);
 
+	unsigned int n;
+
 	if (ok)
 	{
 		/* Apply filter. */
 
-		unsigned int n;
-
-		for (n = 0; n < ITERATIONS; n++)
+		for (n = 0; iterations == 0 || n < iterations; n++)
 		{
 			/* Fill borders with outer image data. */
 
@@ -127,8 +137,14 @@ int main_serial_omp(int argc, char** argv)
 
 			/* Apply inner filter, using omp parallel for. */
 
-#pragma omp parallel num_threads(2)
-			apply_inner_filter_openmp(prev_image, curr_image, B + HEIGHT + B, B + WIDTH + B);
+#pragma omp parallel
+			{
+#pragma omp master
+				if (n == 0)
+					printf("Threads: %d\n", omp_get_num_threads());
+
+				apply_inner_filter_openmp(prev_image, curr_image, B + HEIGHT + B, B + WIDTH + B);
+			}
 
 			/* Apply outer filter. */
 
@@ -140,6 +156,17 @@ int main_serial_omp(int argc, char** argv)
 			tmp = prev_image;
 			prev_image = curr_image;
 			curr_image = tmp;
+
+			/* Check for convergence. */
+
+			if (convergence > 0 && n % convergence == 0)
+			{
+				if (images_identical(curr_image, prev_image, B + HEIGHT + B, B + WIDTH + B))
+				{
+					printf("Filter has converged after %d iterations.\n", n);
+					break;
+				}
+			}
 		}
 	}
 

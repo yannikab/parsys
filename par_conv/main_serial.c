@@ -23,7 +23,18 @@
  */
 int main_serial(int argc, char** argv)
 {
-	printf("main_serial\n");
+	if (argc != 3)
+	{
+		printf("Usage: %s <iterations> <convergence>\n", argv[0]);
+		return (EXIT_FAILURE);
+	}
+
+	int iterations = atoi(argv[1]);
+	int convergence = atoi(argv[2]);
+
+	printf("main_serial()\n");
+	printf("Iterations: %d, Convergence: %d\n", iterations, convergence);
+	printf("Threads: %d\n", 1);
 	
 	bool ok = true;
 
@@ -68,10 +79,10 @@ int main_serial(int argc, char** argv)
 	/* Apply filter. */
 
 	unsigned int n;
-	
+
 	if (ok)
 	{
-		for (n = 0; n < ITERATIONS; n++)
+		for (n = 0; iterations == 0 || n < iterations; n++)
 		{
 			/* Fill borders with outer image data. */
 
@@ -135,6 +146,17 @@ int main_serial(int argc, char** argv)
 			tmp = prev_image;
 			prev_image = curr_image;
 			curr_image = tmp;
+
+			/* Check for convergence. */
+
+			if (convergence > 0 && n % convergence == 0)
+			{
+				if (images_identical(curr_image, prev_image, B + HEIGHT + B, B + WIDTH + B))
+				{
+					printf("Filter has converged after %d iterations.\n", n);
+					break;
+				}
+			}
 		}
 	}
 

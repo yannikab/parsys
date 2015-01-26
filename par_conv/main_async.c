@@ -34,11 +34,17 @@ int main_async(int argc, char** argv)
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	//	printf("%d %d\n", size, rank);
 
-	if (argc != 3)
+	if (argc != 5)
+	{
+		if (rank == 0)
+			printf("Usage: %s <iterations> <convergence> <rows> <columns>\n", argv[0]);
 		return (EXIT_FAILURE);
+	}
 
-	int rows = atoi(argv[1]);
-	int columns = atoi(argv[2]);
+	int iterations = atoi(argv[1]);
+	int convergence = atoi(argv[2]);
+	int rows = atoi(argv[3]);
+	int columns = atoi(argv[4]);
 
 	if (rows * columns != size - 1)
 		return (EXIT_FAILURE);
@@ -62,15 +68,11 @@ int main_async(int argc, char** argv)
 
 	if (rank == 0) // master
 	{
-		printf("main_async\n");
+		printf("main_async()\n");
+		printf("Iterations: %d, Convergence: %d\n", iterations, convergence);
+		printf("Threads: %d\n", 1);
 		
-		//		char cwd[1024];
-		//		if (getcwd(cwd, sizeof (cwd)) != NULL)
-		//			fprintf(stdout, "Current working dir: %s\n", cwd);
-		//		else
-		//			perror("getcwd() error");
-
-		// printf("\nlocal_width: %d, local_height: %d\n", local_width, local_height);
+		// printf("\nwidth: %d, height: %d\n", width, height);
 
 		unsigned char (**image_buffer)[CHANNELS];
 
@@ -91,7 +93,6 @@ int main_async(int argc, char** argv)
 		// printf("\n");
 		for (r = 0; r < rows * columns; r++)
 		{
-			// printf("size:%d, rank:%d\n", size, r);
 			MPI_Recv(coords[r], 2, MPI_INT, r + 1, 0, MPI_COMM_WORLD, &status);
 			// printf("rank %d row:%d col:%d\n", r + 1, coords[r][0], coords[r][1]);
 		}
@@ -125,7 +126,6 @@ int main_async(int argc, char** argv)
 		int dims[] = {rows, columns};
 		int periods[] = {0, 0};
 
-		// printf("rank:%d, comm_slaves:%d, comm_slaves_cart:%d\n", rank, comm_slaves, comm_slaves_cart);
 		MPI_Cart_create(comm_excl, ndims, dims, periods, true, &comm_slaves);
 
 		/* Determine rank in slaves communicator. */
@@ -158,7 +158,6 @@ int main_async(int argc, char** argv)
 		/* Receive local image data from master. */
 
 		// int received;
-		// printf("Slave: %d \n", rank);
 		MPI_Recv(&(local_buffer[B][B][0]), 1, local_buffer_t, master, 0, MPI_COMM_WORLD, &status);
 		// MPI_Get_count(&status, MPI_FLOAT, &received);
 		// printf("Rank: %d, Received: %d.\n", rank, received);
@@ -185,13 +184,6 @@ int main_async(int argc, char** argv)
 		int r_ne, r_nw, r_se, r_sw;
 
 		get_neighbours(comm_slaves, &r_n, &r_s, &r_e, &r_w, &r_nw, &r_se, &r_ne, &r_sw);
-
-		//		if (slave_rank == 4)
-		//		{
-		//			printf("slave_rank: %d\n", slave_rank);
-		//			printf("north: %d, south: %d, east: %d, west: %d\n", r_n, r_s, r_e, r_w);
-		//			printf("nw: %d, se: %d, ne: %d, sw: %d\n", r_nw, r_se, r_ne, r_sw);
-		//		}
 
 		/* Determine if process is in odd or even row/column. */
 
@@ -227,7 +219,7 @@ int main_async(int argc, char** argv)
 
 		unsigned int n;
 
-		for (n = 0; n < ITERATIONS; n++)
+		for (n = 0; iterations == 0 || n < iterations; n++)
 		{
 			/* Indexes in send/recv and status arrays. */
 
@@ -396,7 +388,7 @@ int main_async(int argc, char** argv)
 			}
 
 			assert(p == q); // number of sends should match number of recvs
-			
+
 			/* Apply inner filter, does not require having border data available. */
 
 			apply_inner_filter(prev_image, curr_image, B + height + B, B + width + B);
@@ -468,15 +460,32 @@ int main_async(int argc, char** argv)
 			apply_outer_filter(prev_image, curr_image, B + height + B, B + width + B);
 
 			/* Wait for sends before we switch buffers. */
-			
+
 			MPI_Waitall(p, sends, send_status);
-			
+
 			/* Switch current / previous image buffers. */
 
 			float (**tmp)[CHANNELS];
 			tmp = prev_image;
 			prev_image = curr_image;
 			curr_image = tmp;
+
+			/* Check for convergence. */
+
+			if (convergence > 0 && n % convergence == 0)
+			{
+				int identical = images_identical(curr_image, prev_image, B + height + B, B + width + B) ? 1 : 0;
+				int all_identical = 0;
+
+				MPI_Allreduce(&identical, &all_identical, 1, MPI_INT, MPI_LAND, comm_slaves);
+
+				if (all_identical)
+				{
+					if (slave_rank == 0)
+						printf("Filter has converged after %d iterations.\n", n);
+					break;
+				}
+			}
 		}
 
 		finish = MPI_Wtime();
@@ -488,9 +497,8 @@ int main_async(int argc, char** argv)
 		MPI_Reduce(&elapsed, &avg_elapsed, 1, MPI_DOUBLE, MPI_SUM, 0, comm_slaves);
 		avg_elapsed /= rows * columns;
 
-		printf("Rank %d time elapsed: %lf seconds\n", rank, elapsed);
-
-		MPI_Barrier(comm_slaves);
+		// printf("Rank %d time elapsed: %lf seconds\n", rank, elapsed);
+		// MPI_Barrier(comm_slaves);
 
 		if (slave_rank == 0)
 			printf("Min: %lf, Max: %lf, Avg: %lf seconds\n", min_elapsed, max_elapsed, avg_elapsed);
