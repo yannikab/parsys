@@ -71,7 +71,7 @@ int main_async(int argc, char** argv)
 		printf("main_async()\n");
 		printf("Iterations: %d, Convergence: %d\n", iterations, convergence);
 		printf("Threads: %d\n", 1);
-		
+
 		// printf("\nwidth: %d, height: %d\n", width, height);
 
 		unsigned char (**image_buffer)[CHANNELS];
@@ -216,14 +216,16 @@ int main_async(int argc, char** argv)
 		MPI_Request recvs[8];
 		MPI_Status send_status[8];
 		MPI_Status recv_status[8];
+		unsigned int p, q;
 
 		unsigned int n;
 
 		for (n = 0; iterations == 0 || n < iterations; n++)
 		{
-			/* Indexes in send/recv and status arrays. */
+			/* Reset send/recv indexes. */
 
-			unsigned int p = 0, q = 0;
+			p = 0;
+			q = 0;
 
 			/* Send / receive vertical data. */
 

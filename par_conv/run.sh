@@ -1,5 +1,4 @@
 #!/bin/bash
 
 # mpich2
-mpiexec -machinefile $1 -np `expr $2 \* $3 + 1` ./dist/Debug/GNU-Linux-x86/par_conv $2 $3
-
+mpiexec -machinefile $1 -np `expr $4 \* $5 + 1` ./dist/Release/GNU-Linux-x86/par_conv $2 $3 $4 $5
