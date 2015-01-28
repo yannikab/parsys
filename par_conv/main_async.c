@@ -70,8 +70,8 @@ int main_async(int argc, char** argv)
 		printf("main_async()\n");
 		printf("Iterations: %d, Convergence: %d\n", iterations, convergence);
 		printf("Threads: %d\n", 1);
-
-		// printf("\nwidth: %d, height: %d\n", width, height);
+		printf("rows: %d, columns: %d\n", rows, columns);
+		printf("width: %d, height: %d\n", width, height);
 
 		unsigned char (**image_buffer)[CHANNELS];
 
@@ -161,7 +161,7 @@ int main_async(int argc, char** argv)
 		// MPI_Get_count(&status, MPI_FLOAT, &received);
 		// printf("Rank: %d, Received: %d.\n", rank, received);
 
-		/* Allocate two float arrays for image processing (input, output). */
+		/* Allocate two 2d float arrays for image processing. */
 
 		float (**image_a)[CHANNELS];
 		float (**image_b)[CHANNELS];
@@ -169,12 +169,17 @@ int main_async(int argc, char** argv)
 		alloc_float_array((float ***) &image_a, B + height + B, B + width + B, CHANNELS);
 		alloc_float_array((float ***) &image_b, B + height + B, B + width + B, CHANNELS);
 
-		/* Copy receive/send buffer data, converting to float for applying arithmetic operations. */
+		/* Declare current and previous image pointers, used for switching buffers. */
+		
+		float (**curr_image)[CHANNELS] = image_a;
+		float (**prev_image)[CHANNELS] = image_b;
+
+		/* Copy recv/send buffer data to current image, converting to float for arithmetic operations. */
 
 		for (i = 0; i < B + height + B; i++)
 			for (j = 0; j < B + width + B; j++)
 				for (c = 0; c < CHANNELS; c++)
-					image_a[i][j][c] = (float) local_buffer[i][j][c];
+					curr_image[i][j][c] = (float) local_buffer[i][j][c];
 
 		/* Get neighbouring process ranks. */
 
@@ -197,94 +202,94 @@ int main_async(int argc, char** argv)
 		MPI_Type_commit(&corner_t);
 
 		/* Arrays of sends, recvs, statuses. */
-		
-		MPI_Request sends_1[8];
-		MPI_Request recvs_1[8];
-		MPI_Request sends_2[8];
-		MPI_Request recvs_2[8];
+
+		MPI_Request sends_a[8];
+		MPI_Request recvs_a[8];
+		MPI_Request sends_b[8];
+		MPI_Request recvs_b[8];
 		MPI_Status send_status[8];
 		MPI_Status recv_status[8];
-		
+
 		unsigned int p = 0, q = 0;
 
-		/* Set up persistent communication requests. Two sets are needed, depending on active buffer. */
+		/* Set up persistent communication requests. Two sets are needed, depending on current image buffer. */
 
 		if (r_s != MPI_PROC_NULL) // sendrecv south
 		{
-			MPI_Send_init(&(image_a[height][B][0]), 1, row_t, r_s, 0, comm_slaves, &sends_1[p]);
-			MPI_Send_init(&(image_b[height][B][0]), 1, row_t, r_s, 0, comm_slaves, &sends_2[p]);
-			MPI_Recv_init(&(image_a[height + B][B][0]), 1, row_t, r_s, 0, comm_slaves, &recvs_1[q]);
-			MPI_Recv_init(&(image_b[height + B][B][0]), 1, row_t, r_s, 0, comm_slaves, &recvs_2[q]);
+			MPI_Send_init(&(image_a[height][B][0]), 1, row_t, r_s, 0, comm_slaves, &sends_a[p]);
+			MPI_Send_init(&(image_b[height][B][0]), 1, row_t, r_s, 0, comm_slaves, &sends_b[p]);
+			MPI_Recv_init(&(image_a[height + B][B][0]), 1, row_t, r_s, 0, comm_slaves, &recvs_a[q]);
+			MPI_Recv_init(&(image_b[height + B][B][0]), 1, row_t, r_s, 0, comm_slaves, &recvs_b[q]);
 			p++;
 			q++;
 		}
 
 		if (r_n != MPI_PROC_NULL) // sendrecv north
 		{
-			MPI_Send_init(&(image_a[B][B][0]), 1, row_t, r_n, 0, comm_slaves, &sends_1[p]);
-			MPI_Send_init(&(image_b[B][B][0]), 1, row_t, r_n, 0, comm_slaves, &sends_2[p]);
-			MPI_Recv_init(&(image_a[0][B][0]), 1, row_t, r_n, 0, comm_slaves, &recvs_1[q]);
-			MPI_Recv_init(&(image_b[0][B][0]), 1, row_t, r_n, 0, comm_slaves, &recvs_2[q]);
+			MPI_Send_init(&(image_a[B][B][0]), 1, row_t, r_n, 0, comm_slaves, &sends_a[p]);
+			MPI_Send_init(&(image_b[B][B][0]), 1, row_t, r_n, 0, comm_slaves, &sends_b[p]);
+			MPI_Recv_init(&(image_a[0][B][0]), 1, row_t, r_n, 0, comm_slaves, &recvs_a[q]);
+			MPI_Recv_init(&(image_b[0][B][0]), 1, row_t, r_n, 0, comm_slaves, &recvs_b[q]);
 			p++;
 			q++;
 		}
 
 		if (r_e != MPI_PROC_NULL) // sendrecv east
 		{
-			MPI_Send_init(&(image_a[B][width][0]), 1, column_t, r_e, 0, comm_slaves, &sends_1[p]);
-			MPI_Send_init(&(image_b[B][width][0]), 1, column_t, r_e, 0, comm_slaves, &sends_2[p]);
-			MPI_Recv_init(&(image_a[B][width + B][0]), 1, column_t, r_e, 0, comm_slaves, &recvs_1[q]);
-			MPI_Recv_init(&(image_b[B][width + B][0]), 1, column_t, r_e, 0, comm_slaves, &recvs_2[q]);
+			MPI_Send_init(&(image_a[B][width][0]), 1, column_t, r_e, 0, comm_slaves, &sends_a[p]);
+			MPI_Send_init(&(image_b[B][width][0]), 1, column_t, r_e, 0, comm_slaves, &sends_b[p]);
+			MPI_Recv_init(&(image_a[B][width + B][0]), 1, column_t, r_e, 0, comm_slaves, &recvs_a[q]);
+			MPI_Recv_init(&(image_b[B][width + B][0]), 1, column_t, r_e, 0, comm_slaves, &recvs_b[q]);
 			p++;
 			q++;
 		}
 
 		if (r_w != MPI_PROC_NULL) // sendrecv west
 		{
-			MPI_Send_init(&(image_a[B][B][0]), 1, column_t, r_w, 0, comm_slaves, &sends_1[p]);
-			MPI_Send_init(&(image_b[B][B][0]), 1, column_t, r_w, 0, comm_slaves, &sends_2[p]);
-			MPI_Recv_init(&(image_a[B][0][0]), 1, column_t, r_w, 0, comm_slaves, &recvs_1[q]);
-			MPI_Recv_init(&(image_b[B][0][0]), 1, column_t, r_w, 0, comm_slaves, &recvs_2[q]);
+			MPI_Send_init(&(image_a[B][B][0]), 1, column_t, r_w, 0, comm_slaves, &sends_a[p]);
+			MPI_Send_init(&(image_b[B][B][0]), 1, column_t, r_w, 0, comm_slaves, &sends_b[p]);
+			MPI_Recv_init(&(image_a[B][0][0]), 1, column_t, r_w, 0, comm_slaves, &recvs_a[q]);
+			MPI_Recv_init(&(image_b[B][0][0]), 1, column_t, r_w, 0, comm_slaves, &recvs_b[q]);
 			p++;
 			q++;
 		}
 
 		if (r_se != MPI_PROC_NULL) // sendrecv southeast
 		{
-			MPI_Send_init(&(image_a[height][width][0]), 1, corner_t, r_se, 0, comm_slaves, &sends_1[p]);
-			MPI_Send_init(&(image_b[height][width][0]), 1, corner_t, r_se, 0, comm_slaves, &sends_2[p]);
-			MPI_Recv_init(&(image_a[height + B][width + B][0]), 1, corner_t, r_se, 0, comm_slaves, &recvs_1[q]);
-			MPI_Recv_init(&(image_b[height + B][width + B][0]), 1, corner_t, r_se, 0, comm_slaves, &recvs_2[q]);
+			MPI_Send_init(&(image_a[height][width][0]), 1, corner_t, r_se, 0, comm_slaves, &sends_a[p]);
+			MPI_Send_init(&(image_b[height][width][0]), 1, corner_t, r_se, 0, comm_slaves, &sends_b[p]);
+			MPI_Recv_init(&(image_a[height + B][width + B][0]), 1, corner_t, r_se, 0, comm_slaves, &recvs_a[q]);
+			MPI_Recv_init(&(image_b[height + B][width + B][0]), 1, corner_t, r_se, 0, comm_slaves, &recvs_b[q]);
 			p++;
 			q++;
 		}
 
 		if (r_nw != MPI_PROC_NULL) // sendrecv northwest
 		{
-			MPI_Send_init(&(image_a[B][B][0]), 1, corner_t, r_nw, 0, comm_slaves, &sends_1[p]);
-			MPI_Send_init(&(image_b[B][B][0]), 1, corner_t, r_nw, 0, comm_slaves, &sends_2[p]);
-			MPI_Recv_init(&(image_a[0][0][0]), 1, corner_t, r_nw, 0, comm_slaves, &recvs_1[q]);
-			MPI_Recv_init(&(image_b[0][0][0]), 1, corner_t, r_nw, 0, comm_slaves, &recvs_2[q]);
+			MPI_Send_init(&(image_a[B][B][0]), 1, corner_t, r_nw, 0, comm_slaves, &sends_a[p]);
+			MPI_Send_init(&(image_b[B][B][0]), 1, corner_t, r_nw, 0, comm_slaves, &sends_b[p]);
+			MPI_Recv_init(&(image_a[0][0][0]), 1, corner_t, r_nw, 0, comm_slaves, &recvs_a[q]);
+			MPI_Recv_init(&(image_b[0][0][0]), 1, corner_t, r_nw, 0, comm_slaves, &recvs_b[q]);
 			p++;
 			q++;
 		}
 
 		if (r_sw != MPI_PROC_NULL) // sendrecv southwest
 		{
-			MPI_Send_init(&(image_a[height][B][0]), 1, corner_t, r_sw, 0, comm_slaves, &sends_1[p]);
-			MPI_Send_init(&(image_b[height][B][0]), 1, corner_t, r_sw, 0, comm_slaves, &sends_2[p]);
-			MPI_Recv_init(&(image_a[height + B][0][0]), 1, corner_t, r_sw, 0, comm_slaves, &recvs_1[q]);
-			MPI_Recv_init(&(image_b[height + B][0][0]), 1, corner_t, r_sw, 0, comm_slaves, &recvs_2[q]);
+			MPI_Send_init(&(image_a[height][B][0]), 1, corner_t, r_sw, 0, comm_slaves, &sends_a[p]);
+			MPI_Send_init(&(image_b[height][B][0]), 1, corner_t, r_sw, 0, comm_slaves, &sends_b[p]);
+			MPI_Recv_init(&(image_a[height + B][0][0]), 1, corner_t, r_sw, 0, comm_slaves, &recvs_a[q]);
+			MPI_Recv_init(&(image_b[height + B][0][0]), 1, corner_t, r_sw, 0, comm_slaves, &recvs_b[q]);
 			p++;
 			q++;
 		}
 
 		if (r_ne != MPI_PROC_NULL) // sendrecv northeast
 		{
-			MPI_Send_init(&(image_a[B][width][0]), 1, corner_t, r_ne, 0, comm_slaves, &sends_1[p]);
-			MPI_Send_init(&(image_b[B][width][0]), 1, corner_t, r_ne, 0, comm_slaves, &sends_2[p]);
-			MPI_Recv_init(&(image_a[0][width + B][0]), 1, corner_t, r_ne, 0, comm_slaves, &recvs_1[q]);
-			MPI_Recv_init(&(image_b[0][width + B][0]), 1, corner_t, r_ne, 0, comm_slaves, &recvs_2[q]);
+			MPI_Send_init(&(image_a[B][width][0]), 1, corner_t, r_ne, 0, comm_slaves, &sends_a[p]);
+			MPI_Send_init(&(image_b[B][width][0]), 1, corner_t, r_ne, 0, comm_slaves, &sends_b[p]);
+			MPI_Recv_init(&(image_a[0][width + B][0]), 1, corner_t, r_ne, 0, comm_slaves, &recvs_a[q]);
+			MPI_Recv_init(&(image_b[0][width + B][0]), 1, corner_t, r_ne, 0, comm_slaves, &recvs_b[q]);
 			p++;
 			q++;
 		}
@@ -304,8 +309,8 @@ int main_async(int argc, char** argv)
 		{
 			/* Select appropriate sends/recvs depending on n (active buffer). */
 
-			MPI_Request *sends = (n % 2 == 0) ? sends_1 : sends_2;
-			MPI_Request *recvs = (n % 2 == 0) ? recvs_1 : recvs_2;
+			MPI_Request *sends = (curr_image == image_a) ? (sends_a) : (curr_image == image_b ? sends_b : NULL);
+			MPI_Request *recvs = (curr_image == image_a) ? (recvs_a) : (curr_image == image_b ? recvs_b : NULL);
 
 			/* Reset send/recv indexes. */
 
@@ -368,7 +373,7 @@ int main_async(int argc, char** argv)
 
 			/* Apply inner filter, does not require having border data available. */
 
-			apply_inner_filter(image_b, image_a, B + height + B, B + width + B);
+			apply_inner_filter(prev_image, curr_image, B + height + B, B + width + B);
 
 			/* If a neighbour is null, fill border buffer with edge image data. */
 
@@ -376,53 +381,53 @@ int main_async(int argc, char** argv)
 				for (i = height + B; i < height + 2 * B; i++)
 					for (j = B; j < B + width; j++)
 						for (c = 0; c < CHANNELS; c++)
-							image_a[i][j][c] = image_a[B + height - 1][j][c];
+							curr_image[i][j][c] = curr_image[B + height - 1][j][c];
 
 			if (r_n == MPI_PROC_NULL)
 				for (i = 0; i < B; i++)
 					for (j = B; j < B + width; j++)
 						for (c = 0; c < CHANNELS; c++)
-							image_a[i][j][c] = image_a[B][j][c];
+							curr_image[i][j][c] = curr_image[B][j][c];
 
 			if (r_e == MPI_PROC_NULL)
 				for (i = B; i < B + height; i++)
 					for (j = width + B; j < width + 2 * B; j++)
 						for (c = 0; c < CHANNELS; c++)
-							image_a[i][j][c] = image_a[i][B + width - 1][c];
+							curr_image[i][j][c] = curr_image[i][B + width - 1][c];
 
 			if (r_w == MPI_PROC_NULL)
 				for (i = B; i < B + height; i++)
 					for (j = 0; j < B; j++)
 						for (c = 0; c < CHANNELS; c++)
-							image_a[i][j][c] = image_a[i][B][c];
+							curr_image[i][j][c] = curr_image[i][B][c];
 
 			if (r_se == MPI_PROC_NULL)
 				if (r_s == MPI_PROC_NULL && r_e == MPI_PROC_NULL) // use corner data
 					for (i = height + B; i < height + 2 * B; i++)
 						for (j = width + B; j < width + 2 * B; j++)
 							for (c = 0; c < CHANNELS; c++)
-								image_a[i][j][c] = image_a[B + height - 1][B + width - 1][c];
+								curr_image[i][j][c] = curr_image[B + height - 1][B + width - 1][c];
 
 			if (r_nw == MPI_PROC_NULL)
 				if (r_n == MPI_PROC_NULL && r_w == MPI_PROC_NULL) // use corner data
 					for (i = 0; i < B; i++)
 						for (j = 0; j < B; j++)
 							for (c = 0; c < CHANNELS; c++)
-								image_a[i][j][c] = image_a[B][B][c];
+								curr_image[i][j][c] = curr_image[B][B][c];
 
 			if (r_sw == MPI_PROC_NULL)
 				if (r_s == MPI_PROC_NULL && r_w == MPI_PROC_NULL) // use corner data
 					for (i = height + B; i < height + 2 * B; i++)
 						for (j = 0; j < B; j++)
 							for (c = 0; c < CHANNELS; c++)
-								image_a[i][j][c] = image_a[B + height - 1][B][c];
+								curr_image[i][j][c] = curr_image[B + height - 1][B][c];
 
 			if (r_ne == MPI_PROC_NULL)
 				if (r_n == MPI_PROC_NULL && r_e == MPI_PROC_NULL) // use corner data
 					for (i = 0; i < B; i++)
 						for (j = width + B; j < width + 2 * B; j++)
 							for (c = 0; c < CHANNELS; c++)
-								image_a[i][j][c] = image_a[B][B + width - 1][c];
+								curr_image[i][j][c] = curr_image[B][B + width - 1][c];
 
 			/* Wait for recvs. */
 
@@ -436,12 +441,12 @@ int main_async(int argc, char** argv)
 					for (i = height + B; i < height + 2 * B; i++)
 						for (j = width + B; j < width + 2 * B; j++)
 							for (c = 0; c < CHANNELS; c++)
-								image_a[i][j][c] = image_a[i][B + width - 1][c];
+								curr_image[i][j][c] = curr_image[i][B + width - 1][c];
 				else if (r_e != MPI_PROC_NULL) // get data from east (received)
 					for (i = height + B; i < height + 2 * B; i++)
 						for (j = width + B; j < width + 2 * B; j++)
 							for (c = 0; c < CHANNELS; c++)
-								image_a[i][j][c] = image_a[B + height - 1][j][c];
+								curr_image[i][j][c] = curr_image[B + height - 1][j][c];
 			}
 
 			if (r_nw == MPI_PROC_NULL) // northwest
@@ -450,12 +455,12 @@ int main_async(int argc, char** argv)
 					for (i = 0; i < B; i++)
 						for (j = 0; j < B; j++)
 							for (c = 0; c < CHANNELS; c++)
-								image_a[i][j][c] = image_a[i][B][c];
+								curr_image[i][j][c] = curr_image[i][B][c];
 				else if (r_w != MPI_PROC_NULL) // get data from west (received)
 					for (i = 0; i < B; i++)
 						for (j = 0; j < B; j++)
 							for (c = 0; c < CHANNELS; c++)
-								image_a[i][j][c] = image_a[B][j][c];
+								curr_image[i][j][c] = curr_image[B][j][c];
 			}
 
 			if (r_sw == MPI_PROC_NULL) // southwest
@@ -464,12 +469,12 @@ int main_async(int argc, char** argv)
 					for (i = height + B; i < height + 2 * B; i++)
 						for (j = 0; j < B; j++)
 							for (c = 0; c < CHANNELS; c++)
-								image_a[i][j][c] = image_a[i][B][c];
+								curr_image[i][j][c] = curr_image[i][B][c];
 				else if (r_w != MPI_PROC_NULL) // get data from west (received)
 					for (i = height + B; i < height + 2 * B; i++)
 						for (j = 0; j < B; j++)
 							for (c = 0; c < CHANNELS; c++)
-								image_a[i][j][c] = image_a[B + height - 1][j][c];
+								curr_image[i][j][c] = curr_image[B + height - 1][j][c];
 			}
 
 			if (r_ne == MPI_PROC_NULL) // northeast
@@ -478,34 +483,34 @@ int main_async(int argc, char** argv)
 					for (i = 0; i < B; i++)
 						for (j = width + B; j < width + 2 * B; j++)
 							for (c = 0; c < CHANNELS; c++)
-								image_a[i][j][c] = image_a[i][B + width - 1][c];
+								curr_image[i][j][c] = curr_image[i][B + width - 1][c];
 				else if (r_e != MPI_PROC_NULL) // get data from east (received)
 					for (i = 0; i < B; i++)
 						for (j = width + B; j < width + 2 * B; j++)
 							for (c = 0; c < CHANNELS; c++)
-								image_a[i][j][c] = image_a[B][j][c];
+								curr_image[i][j][c] = curr_image[B][j][c];
 			}
 
 			/* Apply outer filter, requires having all border data available. */
 
-			apply_outer_filter(image_b, image_a, B + height + B, B + width + B);
+			apply_outer_filter(prev_image, curr_image, B + height + B, B + width + B);
 
 			/* Wait for sends before we switch buffers. */
 
 			MPI_Waitall(p, sends, send_status);
-			
+
 			/* Switch current / previous image buffers. */
 
-			float (**tmp)[CHANNELS];
-			tmp = image_b;
-			image_b = image_a;
-			image_a = tmp;
+			float (**temp)[CHANNELS];
+			temp = curr_image;
+			curr_image = prev_image;
+			prev_image = temp;
 
 			/* Check for convergence. */
 
 			if (convergence > 0 && n % convergence == 0)
 			{
-				int identical = images_identical(image_a, image_b, B + height + B, B + width + B) ? 1 : 0;
+				int identical = images_identical(curr_image, prev_image, B + height + B, B + width + B) ? 1 : 0;
 				int all_identical = 0;
 
 				MPI_Allreduce(&identical, &all_identical, 1, MPI_INT, MPI_LAND, comm_slaves);
@@ -540,14 +545,14 @@ int main_async(int argc, char** argv)
 
 		for (n = 0; n > p; n++)
 		{
-			MPI_Request_free(&sends_1[n]);
-			MPI_Request_free(&sends_2[n]);
+			MPI_Request_free(&sends_a[n]);
+			MPI_Request_free(&sends_b[n]);
 		}
 
 		for (n = 0; n > q; n++)
 		{
-			MPI_Request_free(&recvs_1[n]);
-			MPI_Request_free(&recvs_2[n]);
+			MPI_Request_free(&recvs_a[n]);
+			MPI_Request_free(&recvs_b[n]);
 		}
 
 		/* Convert float data back to byte for sending to master process. */
@@ -555,7 +560,7 @@ int main_async(int argc, char** argv)
 		for (i = 0; i < B + height + B; i++)
 			for (j = 0; j < B + width + B; j++)
 				for (c = 0; c < CHANNELS; c++)
-					local_buffer[i][j][c] = (unsigned char) image_a[i][j][c];
+					local_buffer[i][j][c] = (unsigned char) curr_image[i][j][c];
 
 		/* Send results back to master. */
 
