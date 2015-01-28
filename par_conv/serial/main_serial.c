@@ -23,161 +23,161 @@
  */
 int main_serial(int argc, char** argv)
 {
-	if (argc != 3)
-	{
-		printf("Usage: %s <iterations> <convergence>\n", argv[0]);
-		return (EXIT_FAILURE);
-	}
+    if (argc != 3)
+    {
+        printf("Usage: %s <iterations> <convergence>\n", argv[0]);
+        return (EXIT_FAILURE);
+    }
 
-	int iterations = atoi(argv[1]);
-	int convergence = atoi(argv[2]);
+    int iterations = atoi(argv[1]);
+    int convergence = atoi(argv[2]);
 
-	printf("main_serial()\n");
-	printf("Iterations: %d, Convergence: %d\n", iterations, convergence);
-	printf("Threads: %d\n", 1);
-	
-	bool ok = true;
+    printf("main_serial()\n");
+    printf("Iterations: %d, Convergence: %d\n", iterations, convergence);
+    printf("Threads: %d\n", 1);
 
-	/* Read input file into buffer. */
+    bool ok = true;
 
-	unsigned char (**image_buffer)[CHANNELS];
+    /* Read input file into buffer. */
 
-	if (ok)
-		ok = read_image((unsigned char ***) &image_buffer);
+    unsigned char (**image_buffer)[CHANNELS];
 
-	/* Allocate memory for image data. */
+    if (ok)
+        ok = read_image((unsigned char ***) &image_buffer);
 
-	float (**prev_image)[CHANNELS];
-	float (**curr_image)[CHANNELS];
+    /* Allocate memory for image data. */
 
-	if (ok)
-		ok = alloc_float_array((float ***) &prev_image, B + HEIGHT + B, B + WIDTH + B, CHANNELS);
+    float (**prev_image)[CHANNELS];
+    float (**curr_image)[CHANNELS];
 
-	if (ok)
-		ok = alloc_float_array((float ***) &curr_image, B + HEIGHT + B, B + WIDTH + B, CHANNELS);
+    if (ok)
+        ok = alloc_float_array((float ***) &prev_image, B + HEIGHT + B, B + WIDTH + B, CHANNELS);
 
-	/* Convert input. */
+    if (ok)
+        ok = alloc_float_array((float ***) &curr_image, B + HEIGHT + B, B + WIDTH + B, CHANNELS);
 
-	unsigned int i, j, c;
+    /* Convert input. */
 
-	if (ok)
-	{
-		for (i = 0; i < HEIGHT; i++)
-			for (j = 0; j < WIDTH; j++)
-				for (c = 0; c < CHANNELS; c++)
-					curr_image[i + B][j + B][c] = (float) image_buffer[i][j][c];
-	}
+    unsigned int i, j, c;
 
-	/* Start timing. */
+    if (ok)
+    {
+        for (i = 0; i < HEIGHT; i++)
+            for (j = 0; j < WIDTH; j++)
+                for (c = 0; c < CHANNELS; c++)
+                    curr_image[i + B][j + B][c] = (float) image_buffer[i][j][c];
+    }
 
-	double t1, t2, real_time;
-	struct tms tb1, tb2;
-	double tickspersec = (double) sysconf(_SC_CLK_TCK);
+    /* Start timing. */
 
-	t1 = (double) times(&tb1);
+    double t1, t2, real_time;
+    struct tms tb1, tb2;
+    double tickspersec = (double) sysconf(_SC_CLK_TCK);
 
-	/* Apply filter. */
+    t1 = (double) times(&tb1);
 
-	unsigned int n;
+    /* Apply filter. */
 
-	if (ok)
-	{
-		for (n = 0; iterations == 0 || n < iterations; n++)
-		{
-			/* Fill borders with outer image data. */
+    unsigned int n;
 
-			// south
-			for (i = HEIGHT + B; i < HEIGHT + 2 * B; i++)
-				for (j = B; j < B + WIDTH; j++)
-					for (c = 0; c < CHANNELS; c++)
-						curr_image[i][j][c] = curr_image[B + HEIGHT - 1][j][c];
+    if (ok)
+    {
+        for (n = 0; iterations == 0 || n < iterations; n++)
+        {
+            /* Fill borders with outer image data. */
 
-			// north
-			for (i = 0; i < B; i++) // north
-				for (j = B; j < B + WIDTH; j++)
-					for (c = 0; c < CHANNELS; c++)
-						curr_image[i][j][c] = curr_image[B][j][c];
+            // south
+            for (i = HEIGHT + B; i < HEIGHT + 2 * B; i++)
+                for (j = B; j < B + WIDTH; j++)
+                    for (c = 0; c < CHANNELS; c++)
+                        curr_image[i][j][c] = curr_image[B + HEIGHT - 1][j][c];
 
-			// east
-			for (i = B; i < B + HEIGHT; i++)
-				for (j = WIDTH + B; j < WIDTH + 2 * B; j++)
-					for (c = 0; c < CHANNELS; c++)
-						curr_image[i][j][c] = curr_image[i][B + WIDTH - 1][c];
+            // north
+            for (i = 0; i < B; i++) // north
+                for (j = B; j < B + WIDTH; j++)
+                    for (c = 0; c < CHANNELS; c++)
+                        curr_image[i][j][c] = curr_image[B][j][c];
 
-			// west
-			for (i = B; i < B + HEIGHT; i++)
-				for (j = 0; j < B; j++)
-					for (c = 0; c < CHANNELS; c++)
-						curr_image[i][j][c] = curr_image[i][B][c];
+            // east
+            for (i = B; i < B + HEIGHT; i++)
+                for (j = WIDTH + B; j < WIDTH + 2 * B; j++)
+                    for (c = 0; c < CHANNELS; c++)
+                        curr_image[i][j][c] = curr_image[i][B + WIDTH - 1][c];
 
-			// se
-			for (i = HEIGHT + B; i < HEIGHT + 2 * B; i++)
-				for (j = WIDTH + B; j < WIDTH + 2 * B; j++)
-					for (c = 0; c < CHANNELS; c++)
-						curr_image[i][j][c] = curr_image[B + HEIGHT - 1][B + WIDTH - 1][c];
+            // west
+            for (i = B; i < B + HEIGHT; i++)
+                for (j = 0; j < B; j++)
+                    for (c = 0; c < CHANNELS; c++)
+                        curr_image[i][j][c] = curr_image[i][B][c];
 
-			// nw
-			for (i = 0; i < B; i++)
-				for (j = 0; j < B; j++)
-					for (c = 0; c < CHANNELS; c++)
-						curr_image[i][j][c] = curr_image[B][B][c];
+            // se
+            for (i = HEIGHT + B; i < HEIGHT + 2 * B; i++)
+                for (j = WIDTH + B; j < WIDTH + 2 * B; j++)
+                    for (c = 0; c < CHANNELS; c++)
+                        curr_image[i][j][c] = curr_image[B + HEIGHT - 1][B + WIDTH - 1][c];
 
-			// sw
-			for (i = HEIGHT + B; i < HEIGHT + 2 * B; i++)
-				for (j = 0; j < B; j++)
-					for (c = 0; c < CHANNELS; c++)
-						curr_image[i][j][c] = curr_image[B + HEIGHT - 1][B][c];
+            // nw
+            for (i = 0; i < B; i++)
+                for (j = 0; j < B; j++)
+                    for (c = 0; c < CHANNELS; c++)
+                        curr_image[i][j][c] = curr_image[B][B][c];
 
-			// ne
-			for (i = 0; i < B; i++)
-				for (j = WIDTH + B; j < WIDTH + 2 * B; j++)
-					for (c = 0; c < CHANNELS; c++)
-						curr_image[i][j][c] = curr_image[B][B + WIDTH - 1][c];
+            // sw
+            for (i = HEIGHT + B; i < HEIGHT + 2 * B; i++)
+                for (j = 0; j < B; j++)
+                    for (c = 0; c < CHANNELS; c++)
+                        curr_image[i][j][c] = curr_image[B + HEIGHT - 1][B][c];
 
-			/* Apply filter. */
+            // ne
+            for (i = 0; i < B; i++)
+                for (j = WIDTH + B; j < WIDTH + 2 * B; j++)
+                    for (c = 0; c < CHANNELS; c++)
+                        curr_image[i][j][c] = curr_image[B][B + WIDTH - 1][c];
 
-			apply_inner_filter(prev_image, curr_image, B + HEIGHT + B, B + WIDTH + B);
+            /* Apply filter. */
 
-			apply_outer_filter(prev_image, curr_image, B + HEIGHT + B, B + WIDTH + B);
+            apply_inner_filter(prev_image, curr_image, B + HEIGHT + B, B + WIDTH + B);
 
-			/* Switch current / previous image buffers. */
+            apply_outer_filter(prev_image, curr_image, B + HEIGHT + B, B + WIDTH + B);
 
-			float (**temp)[CHANNELS];
-			temp = prev_image;
-			prev_image = curr_image;
-			curr_image = temp;
+            /* Switch current / previous image buffers. */
 
-			/* Check for convergence. */
+            float (**temp)[CHANNELS];
+            temp = prev_image;
+            prev_image = curr_image;
+            curr_image = temp;
 
-			if (convergence > 0 && n % convergence == 0)
-			{
-				if (images_identical(curr_image, prev_image, B + HEIGHT + B, B + WIDTH + B))
-				{
-					printf("Filter has converged after %d iterations.\n", n);
-					break;
-				}
-			}
-		}
-	}
+            /* Check for convergence. */
 
-	/* Stop time measurement, print time. */
+            if (convergence > 0 && n % convergence == 0)
+            {
+                if (images_identical(curr_image, prev_image, B + HEIGHT + B, B + WIDTH + B))
+                {
+                    printf("Filter has converged after %d iterations.\n", n);
+                    break;
+                }
+            }
+        }
+    }
 
-	t2 = (double) times(&tb2);
+    /* Stop time measurement, print time. */
 
-	real_time = (double) (t2 - t1) / tickspersec;
-	printf("Completed in %.3f sec\n", real_time);
+    t2 = (double) times(&tb2);
 
-	/* Convert output. */
+    real_time = (double) (t2 - t1) / tickspersec;
+    printf("Completed in %.3f sec\n", real_time);
 
-	if (ok)
-	{
-		for (i = 0; i < HEIGHT; i++)
-			for (j = 0; j < WIDTH; j++)
-				for (c = 0; c < CHANNELS; c++)
-					image_buffer[i][j][c] = (unsigned char) curr_image[i + B][j + B][c];
-	}
+    /* Convert output. */
 
-	write_channels(image_buffer, HEIGHT, WIDTH);
+    if (ok)
+    {
+        for (i = 0; i < HEIGHT; i++)
+            for (j = 0; j < WIDTH; j++)
+                for (c = 0; c < CHANNELS; c++)
+                    image_buffer[i][j][c] = (unsigned char) curr_image[i + B][j + B][c];
+    }
 
-	return (EXIT_SUCCESS);
+    write_channels(image_buffer, HEIGHT, WIDTH);
+
+    return (EXIT_SUCCESS);
 }

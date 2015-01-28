@@ -10,14 +10,14 @@
 
 #include <stdbool.h>
 
-#include "settings.h"
+#include "../settings.h"
 
 #define B 1
 
 static const float filter[3][3] = {
-	{0.0625f, 0.125f, 0.0625f},
-	{0.1250f, 0.250f, 0.1250f},
-	{0.0625f, 0.125f, 0.0625f},
+    {0.0625f, 0.125f, 0.0625f},
+    {0.1250f, 0.250f, 0.1250f},
+    {0.0625f, 0.125f, 0.0625f},
 };
 
 void apply_inner_filter(float (**output_image)[CHANNELS], float (**input_image)[CHANNELS], int height, int width);
