@@ -1,5 +1,5 @@
 /* 
- * File:   main_async_nonper.c
+ * File:   main_async_omp_simple.c
  * Author: John
  *
  * Created on January 21, 2015, 10:45 AM
@@ -11,17 +11,18 @@
 #include <stdbool.h>
 
 #include <mpi.h>
+#include <omp.h>
 
-#include "settings.h"
-#include "2d_malloc.h"
-#include "file_io.h"
-#include "topology.h"
-#include "filter.h"
+#include "../settings.h"
+#include "../common/2d_malloc.h"
+#include "../common/file_io.h"
+#include "../common/topology.h"
+#include "../common/filter.h"
 
 /*
  * 
  */
-int main_async_nonper(int argc, char** argv)
+int main_async_omp_simple(int argc, char** argv)
 {
 	int size, rank;
 
@@ -67,11 +68,10 @@ int main_async_nonper(int argc, char** argv)
 
 	if (rank == 0) // master
 	{
-		printf("main_async_nonper()\n");
+		printf("main_async_omp_simple()\n");
 		printf("Iterations: %d, Convergence: %d\n", iterations, convergence);
 		printf("rows: %d, columns: %d\n", rows, columns);
 		printf("width: %d, height: %d\n", width, height);
-		printf("Threads: %d\n", 1);
 
 		unsigned char (**image_buffer)[CHANNELS];
 
@@ -163,11 +163,16 @@ int main_async_nonper(int argc, char** argv)
 
 		/* Allocate two 2d float arrays for image processing. */
 
-		float (**curr_image)[CHANNELS];
-		float (**prev_image)[CHANNELS];
+		float (**image_a)[CHANNELS];
+		float (**image_b)[CHANNELS];
 
-		alloc_float_array((float ***) &curr_image, B + height + B, B + width + B, CHANNELS);
-		alloc_float_array((float ***) &prev_image, B + height + B, B + width + B, CHANNELS);
+		alloc_float_array((float ***) &image_a, B + height + B, B + width + B, CHANNELS);
+		alloc_float_array((float ***) &image_b, B + height + B, B + width + B, CHANNELS);
+
+		/* Declare current and previous image pointers, used for switching buffers. */
+
+		float (**curr_image)[CHANNELS] = image_a;
+		float (**prev_image)[CHANNELS] = image_b;
 
 		/* Copy recv/send buffer data to current image, converting to float for arithmetic operations. */
 
@@ -198,11 +203,96 @@ int main_async_nonper(int argc, char** argv)
 
 		/* Arrays of sends, recvs, statuses. */
 
-		MPI_Request sends[8];
-		MPI_Request recvs[8];
+		MPI_Request sends_a[8];
+		MPI_Request recvs_a[8];
+		MPI_Request sends_b[8];
+		MPI_Request recvs_b[8];
 		MPI_Status send_status[8];
 		MPI_Status recv_status[8];
-		unsigned int p, q;
+
+		unsigned int p = 0, q = 0;
+
+		/* Set up persistent communication requests. Two sets are needed, depending on current image buffer. */
+
+		if (r_s != MPI_PROC_NULL) // sendrecv south
+		{
+			MPI_Send_init(&(image_a[height][B][0]), 1, row_t, r_s, 0, comm_slaves, &sends_a[p]);
+			MPI_Send_init(&(image_b[height][B][0]), 1, row_t, r_s, 0, comm_slaves, &sends_b[p]);
+			MPI_Recv_init(&(image_a[height + B][B][0]), 1, row_t, r_s, 0, comm_slaves, &recvs_a[q]);
+			MPI_Recv_init(&(image_b[height + B][B][0]), 1, row_t, r_s, 0, comm_slaves, &recvs_b[q]);
+			p++;
+			q++;
+		}
+
+		if (r_n != MPI_PROC_NULL) // sendrecv north
+		{
+			MPI_Send_init(&(image_a[B][B][0]), 1, row_t, r_n, 0, comm_slaves, &sends_a[p]);
+			MPI_Send_init(&(image_b[B][B][0]), 1, row_t, r_n, 0, comm_slaves, &sends_b[p]);
+			MPI_Recv_init(&(image_a[0][B][0]), 1, row_t, r_n, 0, comm_slaves, &recvs_a[q]);
+			MPI_Recv_init(&(image_b[0][B][0]), 1, row_t, r_n, 0, comm_slaves, &recvs_b[q]);
+			p++;
+			q++;
+		}
+
+		if (r_e != MPI_PROC_NULL) // sendrecv east
+		{
+			MPI_Send_init(&(image_a[B][width][0]), 1, column_t, r_e, 0, comm_slaves, &sends_a[p]);
+			MPI_Send_init(&(image_b[B][width][0]), 1, column_t, r_e, 0, comm_slaves, &sends_b[p]);
+			MPI_Recv_init(&(image_a[B][width + B][0]), 1, column_t, r_e, 0, comm_slaves, &recvs_a[q]);
+			MPI_Recv_init(&(image_b[B][width + B][0]), 1, column_t, r_e, 0, comm_slaves, &recvs_b[q]);
+			p++;
+			q++;
+		}
+
+		if (r_w != MPI_PROC_NULL) // sendrecv west
+		{
+			MPI_Send_init(&(image_a[B][B][0]), 1, column_t, r_w, 0, comm_slaves, &sends_a[p]);
+			MPI_Send_init(&(image_b[B][B][0]), 1, column_t, r_w, 0, comm_slaves, &sends_b[p]);
+			MPI_Recv_init(&(image_a[B][0][0]), 1, column_t, r_w, 0, comm_slaves, &recvs_a[q]);
+			MPI_Recv_init(&(image_b[B][0][0]), 1, column_t, r_w, 0, comm_slaves, &recvs_b[q]);
+			p++;
+			q++;
+		}
+
+		if (r_se != MPI_PROC_NULL) // sendrecv southeast
+		{
+			MPI_Send_init(&(image_a[height][width][0]), 1, corner_t, r_se, 0, comm_slaves, &sends_a[p]);
+			MPI_Send_init(&(image_b[height][width][0]), 1, corner_t, r_se, 0, comm_slaves, &sends_b[p]);
+			MPI_Recv_init(&(image_a[height + B][width + B][0]), 1, corner_t, r_se, 0, comm_slaves, &recvs_a[q]);
+			MPI_Recv_init(&(image_b[height + B][width + B][0]), 1, corner_t, r_se, 0, comm_slaves, &recvs_b[q]);
+			p++;
+			q++;
+		}
+
+		if (r_nw != MPI_PROC_NULL) // sendrecv northwest
+		{
+			MPI_Send_init(&(image_a[B][B][0]), 1, corner_t, r_nw, 0, comm_slaves, &sends_a[p]);
+			MPI_Send_init(&(image_b[B][B][0]), 1, corner_t, r_nw, 0, comm_slaves, &sends_b[p]);
+			MPI_Recv_init(&(image_a[0][0][0]), 1, corner_t, r_nw, 0, comm_slaves, &recvs_a[q]);
+			MPI_Recv_init(&(image_b[0][0][0]), 1, corner_t, r_nw, 0, comm_slaves, &recvs_b[q]);
+			p++;
+			q++;
+		}
+
+		if (r_sw != MPI_PROC_NULL) // sendrecv southwest
+		{
+			MPI_Send_init(&(image_a[height][B][0]), 1, corner_t, r_sw, 0, comm_slaves, &sends_a[p]);
+			MPI_Send_init(&(image_b[height][B][0]), 1, corner_t, r_sw, 0, comm_slaves, &sends_b[p]);
+			MPI_Recv_init(&(image_a[height + B][0][0]), 1, corner_t, r_sw, 0, comm_slaves, &recvs_a[q]);
+			MPI_Recv_init(&(image_b[height + B][0][0]), 1, corner_t, r_sw, 0, comm_slaves, &recvs_b[q]);
+			p++;
+			q++;
+		}
+
+		if (r_ne != MPI_PROC_NULL) // sendrecv northeast
+		{
+			MPI_Send_init(&(image_a[B][width][0]), 1, corner_t, r_ne, 0, comm_slaves, &sends_a[p]);
+			MPI_Send_init(&(image_b[B][width][0]), 1, corner_t, r_ne, 0, comm_slaves, &sends_b[p]);
+			MPI_Recv_init(&(image_a[0][width + B][0]), 1, corner_t, r_ne, 0, comm_slaves, &recvs_a[q]);
+			MPI_Recv_init(&(image_b[0][width + B][0]), 1, corner_t, r_ne, 0, comm_slaves, &recvs_b[q]);
+			p++;
+			q++;
+		}
 
 		/* Set up timing. */
 
@@ -213,10 +303,17 @@ int main_async_nonper(int argc, char** argv)
 
 		/* Apply filter. */
 
+		bool converged = false;
+
 		unsigned int n;
 
-		for (n = 0; iterations == 0 || n < iterations; n++)
+		for (n = 0; !converged && (iterations == 0 || n < iterations); n++)
 		{
+			/* Select appropriate sends/recvs depending on active image buffer. */
+
+			MPI_Request *sends = (curr_image == image_a) ? (sends_a) : (curr_image == image_b ? sends_b : NULL);
+			MPI_Request *recvs = (curr_image == image_a) ? (recvs_a) : (curr_image == image_b ? recvs_b : NULL);
+
 			/* Reset send/recv indexes. */
 
 			p = 0;
@@ -226,59 +323,66 @@ int main_async_nonper(int argc, char** argv)
 
 			if (r_s != MPI_PROC_NULL) // sendrecv south
 			{
-				MPI_Isend(&(curr_image[height][B][0]), 1, row_t, r_s, 0, comm_slaves, &sends[p++]);
-				MPI_Irecv(&(curr_image[height + B][B][0]), 1, row_t, r_s, 0, comm_slaves, &recvs[q++]);
+				MPI_Start(&sends[p++]);
+				MPI_Start(&recvs[q++]);
 			}
 
 			if (r_n != MPI_PROC_NULL) // sendrecv north
 			{
-				MPI_Isend(&(curr_image[B][B][0]), 1, row_t, r_n, 0, comm_slaves, &sends[p++]);
-				MPI_Irecv(&(curr_image[0][B][0]), 1, row_t, r_n, 0, comm_slaves, &recvs[q++]);
+				MPI_Start(&sends[p++]);
+				MPI_Start(&recvs[q++]);
 			}
 
 			/* Send / receive horizontal data. */
 
 			if (r_e != MPI_PROC_NULL) // sendrecv east
 			{
-				MPI_Isend(&(curr_image[B][width][0]), 1, column_t, r_e, 0, comm_slaves, &sends[p++]);
-				MPI_Irecv(&(curr_image[B][width + B][0]), 1, column_t, r_e, 0, comm_slaves, &recvs[q++]);
+				MPI_Start(&sends[p++]);
+				MPI_Start(&recvs[q++]);
 			}
 
 			if (r_w != MPI_PROC_NULL) // sendrecv west
 			{
-				MPI_Isend(&(curr_image[B][B][0]), 1, column_t, r_w, 0, comm_slaves, &sends[p++]);
-				MPI_Irecv(&(curr_image[B][0][0]), 1, column_t, r_w, 0, comm_slaves, &recvs[q++]);
+				MPI_Start(&sends[p++]);
+				MPI_Start(&recvs[q++]);
 			}
 
 			/* Send / receive diagonal data. */
 
 			if (r_se != MPI_PROC_NULL) // sendrecv southeast
 			{
-				MPI_Isend(&(curr_image[height][width][0]), 1, corner_t, r_se, 0, comm_slaves, &sends[p++]);
-				MPI_Irecv(&(curr_image[height + B][width + B][0]), 1, corner_t, r_se, 0, comm_slaves, &recvs[q++]);
+				MPI_Start(&sends[p++]);
+				MPI_Start(&recvs[q++]);
 			}
 
 			if (r_nw != MPI_PROC_NULL) // sendrecv northwest
 			{
-				MPI_Isend(&(curr_image[B][B][0]), 1, corner_t, r_nw, 0, comm_slaves, &sends[p++]);
-				MPI_Irecv(&(curr_image[0][0][0]), 1, corner_t, r_nw, 0, comm_slaves, &recvs[q++]);
+				MPI_Start(&sends[p++]);
+				MPI_Start(&recvs[q++]);
 			}
 
 			if (r_sw != MPI_PROC_NULL) // sendrecv southwest
 			{
-				MPI_Isend(&(curr_image[height][B][0]), 1, corner_t, r_sw, 0, comm_slaves, &sends[p++]);
-				MPI_Irecv(&(curr_image[height + B][0][0]), 1, corner_t, r_sw, 0, comm_slaves, &recvs[q++]);
+				MPI_Start(&sends[p++]);
+				MPI_Start(&recvs[q++]);
 			}
 
 			if (r_ne != MPI_PROC_NULL) // sendrecv northeast
 			{
-				MPI_Isend(&(curr_image[B][width][0]), 1, corner_t, r_ne, 0, comm_slaves, &sends[p++]);
-				MPI_Irecv(&(curr_image[0][width + B][0]), 1, corner_t, r_ne, 0, comm_slaves, &recvs[q++]);
+				MPI_Start(&sends[p++]);
+				MPI_Start(&recvs[q++]);
 			}
 
-			/* Apply inner filter, does not require having border data available. */
+#pragma omp parallel
+			{
+#pragma omp master
+				if (n == 0 && slave_rank == 0)
+					printf("Threads: %d\n", omp_get_num_threads());
 
-			apply_inner_filter(prev_image, curr_image, B + height + B, B + width + B);
+				/* Apply inner filter using omp for, does not require having border data available. */
+
+				apply_inner_filter_openmp(prev_image, curr_image, B + height + B, B + width + B);
+			}
 
 			/* If a neighbor is null, fill border buffer with edge image data. */
 
@@ -424,7 +528,8 @@ int main_async_nonper(int argc, char** argv)
 				{
 					if (slave_rank == 0)
 						printf("Filter has converged after %d iterations.\n", n);
-					break;
+
+					converged = true; // break not allowed from OpenMP structured block
 				}
 			}
 		}
@@ -438,7 +543,7 @@ int main_async_nonper(int argc, char** argv)
 		MPI_Reduce(&elapsed, &min_elapsed, 1, MPI_DOUBLE, MPI_MIN, 0, comm_slaves);
 		MPI_Reduce(&elapsed, &max_elapsed, 1, MPI_DOUBLE, MPI_MAX, 0, comm_slaves);
 		MPI_Reduce(&elapsed, &avg_elapsed, 1, MPI_DOUBLE, MPI_SUM, 0, comm_slaves);
-		
+
 		avg_elapsed /= rows * columns;
 
 		// printf("Rank %d time elapsed: %lf seconds\n", rank, elapsed);
@@ -446,6 +551,20 @@ int main_async_nonper(int argc, char** argv)
 
 		if (slave_rank == 0)
 			printf("Min: %lf, Max: %lf, Avg: %lf seconds\n", min_elapsed, max_elapsed, avg_elapsed);
+
+		/* Free memory allocated for requests. */
+
+		for (c = 0; c > p; c++)
+		{
+			MPI_Request_free(&sends_a[c]);
+			MPI_Request_free(&sends_b[c]);
+		}
+
+		for (c = 0; c > q; c++)
+		{
+			MPI_Request_free(&recvs_a[c]);
+			MPI_Request_free(&recvs_b[c]);
+		}
 
 		/* Convert float data back to byte for sending to master process. */
 

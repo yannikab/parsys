@@ -1,10 +1,10 @@
-erato/
 */build/
 */dist/
 *.stackdump
-serial/
-parallel/
-input/
-lab_cuda/
-openmp-lab/
-openmp/
+/erato/
+/serial/
+/parallel/
+/input/
+/lab_cuda/
+/openmp-lab/
+/openmp/

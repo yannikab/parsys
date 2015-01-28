@@ -187,40 +187,40 @@ bool write_channels(unsigned char (**file_buffer)[CHANNELS], int height, int wid
 		ok = system(command) == 0;
 	}
 
-	/* Convert output files to tiff format (ImageMagick). */
-
-	// printf("\n");
-	for (c = 0; ok && c < CHANNELS; c++)
-	{
-		// sprintf(command, "raw2tiff -l %d -w %d %s %s.tiff", height, width, out_filename[c], out_filename[c]);
-		sprintf(command, "convert -depth 8 -size %dx%d gray:%s -compress lzw %s.tiff", width, height, out_filename[c], out_filename[c]);
-		// printf("%s\n", command);
-		ok = system(command) == 0;
-	}
-
-	/* Merge individual channel tiffs to a single tiff (ImageMagick). */
-
-	sprintf(command, "convert");
-	if (ok)
-	{
-		for (c = 0; c < CHANNELS; c++)
-		{
-			strcat(command, " ");
-			strcat(command, out_filename[c]);
-			strcat(command, ".tiff");
-		}
-
-		strcat(command, " -combine ");
-		strcat(command, OUTDIR);
-		strcat(command, OUTFILENAME);
-		strcat(command, ".tiff");
-
-		// printf("%s\n", command);
-
-		ok = system(command) == 0;
-	}
-
-	// printf("\n");
+	//	/* Convert output files to tiff format (ImageMagick). */
+	//
+	//	// printf("\n");
+	//	for (c = 0; ok && c < CHANNELS; c++)
+	//	{
+	//		// sprintf(command, "raw2tiff -l %d -w %d %s %s.tiff", height, width, out_filename[c], out_filename[c]);
+	//		sprintf(command, "convert -depth 8 -size %dx%d gray:%s -compress lzw %s.tiff", width, height, out_filename[c], out_filename[c]);
+	//		// printf("%s\n", command);
+	//		ok = system(command) == 0;
+	//	}
+	//
+	//	/* Merge individual channel tiffs to a single tiff (ImageMagick). */
+	//
+	//	sprintf(command, "convert");
+	//	if (ok)
+	//	{
+	//		for (c = 0; c < CHANNELS; c++)
+	//		{
+	//			strcat(command, " ");
+	//			strcat(command, out_filename[c]);
+	//			strcat(command, ".tiff");
+	//		}
+	//
+	//		strcat(command, " -combine ");
+	//		strcat(command, OUTDIR);
+	//		strcat(command, OUTFILENAME);
+	//		strcat(command, ".tiff");
+	//
+	//		// printf("%s\n", command);
+	//
+	//		ok = system(command) == 0;
+	//	}
+	//
+	//	// printf("\n");
 
 	/* Free memory allocated for filenames. */
 

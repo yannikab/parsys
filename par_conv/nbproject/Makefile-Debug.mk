@@ -35,20 +35,20 @@ OBJECTDIR=${CND_BUILDDIR}/${CND_CONF}/${CND_PLATFORM}
 
 # Object Files
 OBJECTFILES= \
-	${OBJECTDIR}/2d_malloc.o \
-	${OBJECTDIR}/file_io.o \
-	${OBJECTDIR}/filter.o \
+	${OBJECTDIR}/async/main_async.o \
+	${OBJECTDIR}/async/main_async_nonper.o \
+	${OBJECTDIR}/async/main_async_omp.o \
+	${OBJECTDIR}/async/main_async_omp_simple.o \
+	${OBJECTDIR}/common/2d_malloc.o \
+	${OBJECTDIR}/common/file_io.o \
+	${OBJECTDIR}/common/filter.o \
+	${OBJECTDIR}/common/topology.o \
 	${OBJECTDIR}/main.o \
-	${OBJECTDIR}/main_async.o \
-	${OBJECTDIR}/main_async_nonper.o \
-	${OBJECTDIR}/main_async_omp.o \
-	${OBJECTDIR}/main_async_omp_simple.o \
-	${OBJECTDIR}/main_serial.o \
-	${OBJECTDIR}/main_serial_omp.o \
-	${OBJECTDIR}/main_sync.o \
-	${OBJECTDIR}/main_sync_omp.o \
-	${OBJECTDIR}/main_sync_omp_simple.o \
-	${OBJECTDIR}/topology.o
+	${OBJECTDIR}/serial/main_serial.o \
+	${OBJECTDIR}/serial/main_serial_omp.o \
+	${OBJECTDIR}/sync/main_sync.o \
+	${OBJECTDIR}/sync/main_sync_omp.o \
+	${OBJECTDIR}/sync/main_sync_omp_simple.o
 
 
 # C Compiler Flags
@@ -75,75 +75,75 @@ ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/par_conv: ${OBJECTFILES}
 	${MKDIR} -p ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}
 	${LINK.c} -o ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/par_conv ${OBJECTFILES} ${LDLIBSOPTIONS}
 
-${OBJECTDIR}/2d_malloc.o: 2d_malloc.c 
-	${MKDIR} -p ${OBJECTDIR}
+${OBJECTDIR}/async/main_async.o: async/main_async.c 
+	${MKDIR} -p ${OBJECTDIR}/async
 	${RM} "$@.d"
-	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/2d_malloc.o 2d_malloc.c
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/async/main_async.o async/main_async.c
 
-${OBJECTDIR}/file_io.o: file_io.c 
-	${MKDIR} -p ${OBJECTDIR}
+${OBJECTDIR}/async/main_async_nonper.o: async/main_async_nonper.c 
+	${MKDIR} -p ${OBJECTDIR}/async
 	${RM} "$@.d"
-	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/file_io.o file_io.c
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/async/main_async_nonper.o async/main_async_nonper.c
 
-${OBJECTDIR}/filter.o: filter.c 
-	${MKDIR} -p ${OBJECTDIR}
+${OBJECTDIR}/async/main_async_omp.o: async/main_async_omp.c 
+	${MKDIR} -p ${OBJECTDIR}/async
 	${RM} "$@.d"
-	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/filter.o filter.c
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/async/main_async_omp.o async/main_async_omp.c
+
+${OBJECTDIR}/async/main_async_omp_simple.o: async/main_async_omp_simple.c 
+	${MKDIR} -p ${OBJECTDIR}/async
+	${RM} "$@.d"
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/async/main_async_omp_simple.o async/main_async_omp_simple.c
+
+${OBJECTDIR}/common/2d_malloc.o: common/2d_malloc.c 
+	${MKDIR} -p ${OBJECTDIR}/common
+	${RM} "$@.d"
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/common/2d_malloc.o common/2d_malloc.c
+
+${OBJECTDIR}/common/file_io.o: common/file_io.c 
+	${MKDIR} -p ${OBJECTDIR}/common
+	${RM} "$@.d"
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/common/file_io.o common/file_io.c
+
+${OBJECTDIR}/common/filter.o: common/filter.c 
+	${MKDIR} -p ${OBJECTDIR}/common
+	${RM} "$@.d"
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/common/filter.o common/filter.c
+
+${OBJECTDIR}/common/topology.o: common/topology.c 
+	${MKDIR} -p ${OBJECTDIR}/common
+	${RM} "$@.d"
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/common/topology.o common/topology.c
 
 ${OBJECTDIR}/main.o: main.c 
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} "$@.d"
 	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/main.o main.c
 
-${OBJECTDIR}/main_async.o: main_async.c 
-	${MKDIR} -p ${OBJECTDIR}
+${OBJECTDIR}/serial/main_serial.o: serial/main_serial.c 
+	${MKDIR} -p ${OBJECTDIR}/serial
 	${RM} "$@.d"
-	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/main_async.o main_async.c
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/serial/main_serial.o serial/main_serial.c
 
-${OBJECTDIR}/main_async_nonper.o: main_async_nonper.c 
-	${MKDIR} -p ${OBJECTDIR}
+${OBJECTDIR}/serial/main_serial_omp.o: serial/main_serial_omp.c 
+	${MKDIR} -p ${OBJECTDIR}/serial
 	${RM} "$@.d"
-	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/main_async_nonper.o main_async_nonper.c
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/serial/main_serial_omp.o serial/main_serial_omp.c
 
-${OBJECTDIR}/main_async_omp.o: main_async_omp.c 
-	${MKDIR} -p ${OBJECTDIR}
+${OBJECTDIR}/sync/main_sync.o: sync/main_sync.c 
+	${MKDIR} -p ${OBJECTDIR}/sync
 	${RM} "$@.d"
-	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/main_async_omp.o main_async_omp.c
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/sync/main_sync.o sync/main_sync.c
 
-${OBJECTDIR}/main_async_omp_simple.o: main_async_omp_simple.c 
-	${MKDIR} -p ${OBJECTDIR}
+${OBJECTDIR}/sync/main_sync_omp.o: sync/main_sync_omp.c 
+	${MKDIR} -p ${OBJECTDIR}/sync
 	${RM} "$@.d"
-	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/main_async_omp_simple.o main_async_omp_simple.c
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/sync/main_sync_omp.o sync/main_sync_omp.c
 
-${OBJECTDIR}/main_serial.o: main_serial.c 
-	${MKDIR} -p ${OBJECTDIR}
+${OBJECTDIR}/sync/main_sync_omp_simple.o: sync/main_sync_omp_simple.c 
+	${MKDIR} -p ${OBJECTDIR}/sync
 	${RM} "$@.d"
-	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/main_serial.o main_serial.c
-
-${OBJECTDIR}/main_serial_omp.o: main_serial_omp.c 
-	${MKDIR} -p ${OBJECTDIR}
-	${RM} "$@.d"
-	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/main_serial_omp.o main_serial_omp.c
-
-${OBJECTDIR}/main_sync.o: main_sync.c 
-	${MKDIR} -p ${OBJECTDIR}
-	${RM} "$@.d"
-	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/main_sync.o main_sync.c
-
-${OBJECTDIR}/main_sync_omp.o: main_sync_omp.c 
-	${MKDIR} -p ${OBJECTDIR}
-	${RM} "$@.d"
-	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/main_sync_omp.o main_sync_omp.c
-
-${OBJECTDIR}/main_sync_omp_simple.o: main_sync_omp_simple.c 
-	${MKDIR} -p ${OBJECTDIR}
-	${RM} "$@.d"
-	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/main_sync_omp_simple.o main_sync_omp_simple.c
-
-${OBJECTDIR}/topology.o: topology.c 
-	${MKDIR} -p ${OBJECTDIR}
-	${RM} "$@.d"
-	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/topology.o topology.c
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/sync/main_sync_omp_simple.o sync/main_sync_omp_simple.c
 
 # Subprojects
 .build-subprojects:

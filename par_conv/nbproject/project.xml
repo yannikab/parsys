@@ -9,7 +9,12 @@
             <header-extensions>h</header-extensions>
             <sourceEncoding>UTF-8</sourceEncoding>
             <make-dep-projects/>
-            <sourceRootList/>
+            <sourceRootList>
+                <sourceRootElem>async</sourceRootElem>
+                <sourceRootElem>sync</sourceRootElem>
+                <sourceRootElem>serial</sourceRootElem>
+                <sourceRootElem>common</sourceRootElem>
+            </sourceRootList>
             <confList>
                 <confElem>
                     <name>Debug</name>

@@ -13,15 +13,17 @@
 #include <unistd.h>
 #include <sys/times.h>
 
-#include "settings.h"
-#include "2d_malloc.h"
-#include "file_io.h"
-#include "filter.h"
+#include "../settings.h"
+#include "../common/2d_malloc.h"
+#include "../common/file_io.h"
+#include "../common/filter.h"
+
+#include <omp.h>
 
 /*
  * 
  */
-int main_serial(int argc, char** argv)
+int main_serial_omp(int argc, char** argv)
 {
 	if (argc != 3)
 	{
@@ -32,10 +34,9 @@ int main_serial(int argc, char** argv)
 	int iterations = atoi(argv[1]);
 	int convergence = atoi(argv[2]);
 
-	printf("main_serial()\n");
+	printf("main_serial_omp()\n");
 	printf("Iterations: %d, Convergence: %d\n", iterations, convergence);
-	printf("Threads: %d\n", 1);
-	
+
 	bool ok = true;
 
 	/* Read input file into buffer. */
@@ -76,12 +77,12 @@ int main_serial(int argc, char** argv)
 
 	t1 = (double) times(&tb1);
 
-	/* Apply filter. */
-
 	unsigned int n;
 
 	if (ok)
 	{
+		/* Apply filter. */
+
 		for (n = 0; iterations == 0 || n < iterations; n++)
 		{
 			/* Fill borders with outer image data. */
@@ -134,9 +135,18 @@ int main_serial(int argc, char** argv)
 					for (c = 0; c < CHANNELS; c++)
 						curr_image[i][j][c] = curr_image[B][B + WIDTH - 1][c];
 
-			/* Apply filter. */
+			/* Apply inner filter, using omp parallel for. */
 
-			apply_inner_filter(prev_image, curr_image, B + HEIGHT + B, B + WIDTH + B);
+#pragma omp parallel
+			{
+#pragma omp master
+				if (n == 0)
+					printf("Threads: %d\n", omp_get_num_threads());
+
+				apply_inner_filter_openmp(prev_image, curr_image, B + HEIGHT + B, B + WIDTH + B);
+			}
+
+			/* Apply outer filter. */
 
 			apply_outer_filter(prev_image, curr_image, B + HEIGHT + B, B + WIDTH + B);
 

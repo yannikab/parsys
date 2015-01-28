@@ -1,8 +1,8 @@
 /* 
- * File:   main_async_omp_simple.c
+ * File:   main_async.c
  * Author: John
  *
- * Created on January 21, 2015, 10:45 AM
+ * Created on January 27, 2015, 6:26 PM
  */
 
 #include <stdio.h>
@@ -11,18 +11,17 @@
 #include <stdbool.h>
 
 #include <mpi.h>
-#include <omp.h>
 
-#include "settings.h"
-#include "2d_malloc.h"
-#include "file_io.h"
-#include "topology.h"
-#include "filter.h"
+#include "../settings.h"
+#include "../common/2d_malloc.h"
+#include "../common/file_io.h"
+#include "../common/topology.h"
+#include "../common/filter.h"
 
 /*
  * 
  */
-int main_async_omp_simple(int argc, char** argv)
+int main_async(int argc, char** argv)
 {
 	int size, rank;
 
@@ -68,10 +67,11 @@ int main_async_omp_simple(int argc, char** argv)
 
 	if (rank == 0) // master
 	{
-		printf("main_async_omp_simple()\n");
+		printf("main_async()\n");
 		printf("Iterations: %d, Convergence: %d\n", iterations, convergence);
 		printf("rows: %d, columns: %d\n", rows, columns);
 		printf("width: %d, height: %d\n", width, height);
+		printf("Threads: %d\n", 1);
 
 		unsigned char (**image_buffer)[CHANNELS];
 
@@ -170,7 +170,7 @@ int main_async_omp_simple(int argc, char** argv)
 		alloc_float_array((float ***) &image_b, B + height + B, B + width + B, CHANNELS);
 
 		/* Declare current and previous image pointers, used for switching buffers. */
-
+		
 		float (**curr_image)[CHANNELS] = image_a;
 		float (**prev_image)[CHANNELS] = image_b;
 
@@ -303,11 +303,9 @@ int main_async_omp_simple(int argc, char** argv)
 
 		/* Apply filter. */
 
-		bool converged = false;
-
 		unsigned int n;
 
-		for (n = 0; !converged && (iterations == 0 || n < iterations); n++)
+		for (n = 0; iterations == 0 || n < iterations; n++)
 		{
 			/* Select appropriate sends/recvs depending on active image buffer. */
 
@@ -373,16 +371,9 @@ int main_async_omp_simple(int argc, char** argv)
 				MPI_Start(&recvs[q++]);
 			}
 
-#pragma omp parallel
-			{
-#pragma omp master
-				if (n == 0 && slave_rank == 0)
-					printf("Threads: %d\n", omp_get_num_threads());
+			/* Apply inner filter, does not require having border data available. */
 
-				/* Apply inner filter using omp for, does not require having border data available. */
-
-				apply_inner_filter_openmp(prev_image, curr_image, B + height + B, B + width + B);
-			}
+			apply_inner_filter(prev_image, curr_image, B + height + B, B + width + B);
 
 			/* If a neighbor is null, fill border buffer with edge image data. */
 
@@ -528,8 +519,8 @@ int main_async_omp_simple(int argc, char** argv)
 				{
 					if (slave_rank == 0)
 						printf("Filter has converged after %d iterations.\n", n);
-
-					converged = true; // break not allowed from OpenMP structured block
+						
+					break;
 				}
 			}
 		}
@@ -543,7 +534,7 @@ int main_async_omp_simple(int argc, char** argv)
 		MPI_Reduce(&elapsed, &min_elapsed, 1, MPI_DOUBLE, MPI_MIN, 0, comm_slaves);
 		MPI_Reduce(&elapsed, &max_elapsed, 1, MPI_DOUBLE, MPI_MAX, 0, comm_slaves);
 		MPI_Reduce(&elapsed, &avg_elapsed, 1, MPI_DOUBLE, MPI_SUM, 0, comm_slaves);
-
+		
 		avg_elapsed /= rows * columns;
 
 		// printf("Rank %d time elapsed: %lf seconds\n", rank, elapsed);

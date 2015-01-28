@@ -12,11 +12,11 @@
 
 #include <mpi.h>
 
-#include "settings.h"
-#include "2d_malloc.h"
-#include "file_io.h"
-#include "topology.h"
-#include "filter.h"
+#include "../settings.h"
+#include "../common/2d_malloc.h"
+#include "../common/file_io.h"
+#include "../common/topology.h"
+#include "../common/filter.h"
 
 /*
  * 
