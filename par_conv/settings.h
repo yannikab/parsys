@@ -13,8 +13,8 @@
 #define OUTDIR "/tmp/stud0781/parallel/"
 
 // google cloud
-//#define INDIR "/mnt/disk-1/John/input/1.00x/"
-//#define OUTDIR "/mnt/disk-1/John/parallel/"
+// #define INDIR "/mnt/disk-1/John/input/1.00x/"
+// #define OUTDIR "/mnt/disk-1/John/parallel/"
 
 // home
 // #define INDIR "../input/1.00x/"

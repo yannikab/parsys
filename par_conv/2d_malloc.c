@@ -9,7 +9,6 @@
 #include <stdlib.h>
 
 #include <stdbool.h>
-#include <assert.h>
 
 #include "2d_malloc.h"
 
@@ -40,8 +39,6 @@ bool alloc_uchar_array(unsigned char ***array, int rows, int columns, int channe
 
 void dealloc_uchar_array(unsigned char ***array)
 {
-	assert(array != NULL);
-
 	free(&((*array)[0][0]));
 	free(*array);
 	*array = NULL;
@@ -74,8 +71,6 @@ bool alloc_float_array(float ***array, int rows, int columns, int channels)
 
 void dealloc_float_array(float ***array)
 {
-	assert(array != NULL);
-
 	free(&((*array)[0][0]));
 	free(*array);
 	*array = NULL;

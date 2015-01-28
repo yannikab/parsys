@@ -40,11 +40,14 @@ OBJECTFILES= \
 	${OBJECTDIR}/filter.o \
 	${OBJECTDIR}/main.o \
 	${OBJECTDIR}/main_async.o \
+	${OBJECTDIR}/main_async_nonper.o \
 	${OBJECTDIR}/main_async_omp.o \
+	${OBJECTDIR}/main_async_omp_simple.o \
 	${OBJECTDIR}/main_serial.o \
 	${OBJECTDIR}/main_serial_omp.o \
 	${OBJECTDIR}/main_sync.o \
 	${OBJECTDIR}/main_sync_omp.o \
+	${OBJECTDIR}/main_sync_omp_simple.o \
 	${OBJECTDIR}/topology.o
 
 
@@ -97,10 +100,20 @@ ${OBJECTDIR}/main_async.o: main_async.c
 	${RM} "$@.d"
 	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/main_async.o main_async.c
 
+${OBJECTDIR}/main_async_nonper.o: main_async_nonper.c 
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} "$@.d"
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/main_async_nonper.o main_async_nonper.c
+
 ${OBJECTDIR}/main_async_omp.o: main_async_omp.c 
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} "$@.d"
 	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/main_async_omp.o main_async_omp.c
+
+${OBJECTDIR}/main_async_omp_simple.o: main_async_omp_simple.c 
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} "$@.d"
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/main_async_omp_simple.o main_async_omp_simple.c
 
 ${OBJECTDIR}/main_serial.o: main_serial.c 
 	${MKDIR} -p ${OBJECTDIR}
@@ -121,6 +134,11 @@ ${OBJECTDIR}/main_sync_omp.o: main_sync_omp.c
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} "$@.d"
 	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/main_sync_omp.o main_sync_omp.c
+
+${OBJECTDIR}/main_sync_omp_simple.o: main_sync_omp_simple.c 
+	${MKDIR} -p ${OBJECTDIR}
+	${RM} "$@.d"
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/main_sync_omp_simple.o main_sync_omp_simple.c
 
 ${OBJECTDIR}/topology.o: topology.c 
 	${MKDIR} -p ${OBJECTDIR}

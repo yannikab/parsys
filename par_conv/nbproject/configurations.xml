@@ -22,11 +22,14 @@
       <itemPath>filter.c</itemPath>
       <itemPath>main.c</itemPath>
       <itemPath>main_async.c</itemPath>
+      <itemPath>main_async_nonper.c</itemPath>
       <itemPath>main_async_omp.c</itemPath>
+      <itemPath>main_async_omp_simple.c</itemPath>
       <itemPath>main_serial.c</itemPath>
       <itemPath>main_serial_omp.c</itemPath>
       <itemPath>main_sync.c</itemPath>
       <itemPath>main_sync_omp.c</itemPath>
+      <itemPath>main_sync_omp_simple.c</itemPath>
       <itemPath>topology.c</itemPath>
     </logicalFolder>
     <logicalFolder name="TestFiles"
@@ -75,7 +78,11 @@
       </item>
       <item path="main_async.c" ex="false" tool="0" flavor2="0">
       </item>
+      <item path="main_async_nonper.c" ex="false" tool="0" flavor2="0">
+      </item>
       <item path="main_async_omp.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="main_async_omp_simple.c" ex="false" tool="0" flavor2="0">
       </item>
       <item path="main_serial.c" ex="false" tool="0" flavor2="0">
       </item>
@@ -84,6 +91,8 @@
       <item path="main_sync.c" ex="false" tool="0" flavor2="0">
       </item>
       <item path="main_sync_omp.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="main_sync_omp_simple.c" ex="false" tool="0" flavor2="0">
       </item>
       <item path="settings.h" ex="false" tool="3" flavor2="0">
       </item>
@@ -134,7 +143,11 @@
       </item>
       <item path="main_async.c" ex="false" tool="0" flavor2="0">
       </item>
+      <item path="main_async_nonper.c" ex="false" tool="0" flavor2="0">
+      </item>
       <item path="main_async_omp.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="main_async_omp_simple.c" ex="false" tool="0" flavor2="0">
       </item>
       <item path="main_serial.c" ex="false" tool="0" flavor2="0">
       </item>
@@ -143,6 +156,8 @@
       <item path="main_sync.c" ex="false" tool="0" flavor2="0">
       </item>
       <item path="main_sync_omp.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="main_sync_omp_simple.c" ex="false" tool="0" flavor2="0">
       </item>
       <item path="settings.h" ex="false" tool="3" flavor2="0">
       </item>

@@ -1,5 +1,5 @@
 /* 
- * File:   main_async_omp.c
+ * File:   main_async_omp_simple.c
  * Author: John
  *
  * Created on January 21, 2015, 10:45 AM
@@ -22,7 +22,7 @@
 /*
  * 
  */
-int main_async_omp(int argc, char** argv)
+int main_async_omp_simple(int argc, char** argv)
 {
 	int size, rank;
 
@@ -68,7 +68,7 @@ int main_async_omp(int argc, char** argv)
 
 	if (rank == 0) // master
 	{
-		printf("main_async_omp()\n");
+		printf("main_async_omp_simple()\n");
 		printf("Iterations: %d, Convergence: %d\n", iterations, convergence);
 
 		// printf("\nwidth: %d, height: %d\n", width, height);
@@ -290,277 +290,260 @@ int main_async_omp(int argc, char** argv)
 		}
 
 		bool converged = false;
+		/* Set up timing. */
 
-#pragma omp parallel private (i,j,c)
+		double start, finish, elapsed, min_elapsed, max_elapsed, avg_elapsed;
+
+		MPI_Barrier(comm_slaves);
+		start = MPI_Wtime();
+
+		/* Apply filter. */
+
+		unsigned int n;
+
+		for (n = 0; !converged && (iterations == 0 || n < iterations); n++)
 		{
-#pragma omp single
-			if (slave_rank == 0)
-				printf("Threads: %d\n", omp_get_num_threads());
+			/* Select appropriate sends/recvs depending on n (active buffer). */
 
-			/* Set up timing. */
+			MPI_Request *sends = (n % 2 == 0) ? sends_1 : sends_2;
+			MPI_Request *recvs = (n % 2 == 0) ? recvs_1 : recvs_2;
 
-			double start, finish, elapsed, min_elapsed, max_elapsed, avg_elapsed;
+			/* Reset send/recv indexes. */
 
-#pragma omp master
+			p = 0;
+			q = 0;
+
+			/* Send / receive vertical data. */
+
+			if (r_s != MPI_PROC_NULL) // sendrecv south
 			{
-				MPI_Barrier(comm_slaves);
-				start = MPI_Wtime();
+				MPI_Start(&sends[p++]);
+				MPI_Start(&recvs[q++]);
 			}
 
-			/* Apply filter. */
-
-			unsigned int n;
-
-			for (n = 0; !converged && (iterations == 0 || n < iterations); n++)
+			if (r_n != MPI_PROC_NULL) // sendrecv north
 			{
-				/* Select appropriate sends/recvs depending on n (active buffer). */
+				MPI_Start(&sends[p++]);
+				MPI_Start(&recvs[q++]);
+			}
 
-				MPI_Request *sends = (n % 2 == 0) ? sends_1 : sends_2;
-				MPI_Request *recvs = (n % 2 == 0) ? recvs_1 : recvs_2;
+			/* Send / receive horizontal data. */
 
-#pragma omp master // master thread handles MPI messaging
-				{
-					/* Reset send/recv indexes. */
+			if (r_e != MPI_PROC_NULL) // sendrecv east
+			{
+				MPI_Start(&sends[p++]);
+				MPI_Start(&recvs[q++]);
+			}
 
-					p = 0;
-					q = 0;
+			if (r_w != MPI_PROC_NULL) // sendrecv west
+			{
+				MPI_Start(&sends[p++]);
+				MPI_Start(&recvs[q++]);
+			}
 
-					/* Send / receive vertical data. */
+			/* Send / receive diagonal data. */
 
-					if (r_s != MPI_PROC_NULL) // sendrecv south
-					{
-						MPI_Start(&sends[p++]);
-						MPI_Start(&recvs[q++]);
-					}
+			if (r_se != MPI_PROC_NULL) // sendrecv southeast
+			{
+				MPI_Start(&sends[p++]);
+				MPI_Start(&recvs[q++]);
+			}
 
-					if (r_n != MPI_PROC_NULL) // sendrecv north
-					{
-						MPI_Start(&sends[p++]);
-						MPI_Start(&recvs[q++]);
-					}
+			if (r_nw != MPI_PROC_NULL) // sendrecv northwest
+			{
+				MPI_Start(&sends[p++]);
+				MPI_Start(&recvs[q++]);
+			}
 
-					/* Send / receive horizontal data. */
+			if (r_sw != MPI_PROC_NULL) // sendrecv southwest
+			{
+				MPI_Start(&sends[p++]);
+				MPI_Start(&recvs[q++]);
+			}
 
-					if (r_e != MPI_PROC_NULL) // sendrecv east
-					{
-						MPI_Start(&sends[p++]);
-						MPI_Start(&recvs[q++]);
-					}
+			if (r_ne != MPI_PROC_NULL) // sendrecv northeast
+			{
+				MPI_Start(&sends[p++]);
+				MPI_Start(&recvs[q++]);
+			}
 
-					if (r_w != MPI_PROC_NULL) // sendrecv west
-					{
-						MPI_Start(&sends[p++]);
-						MPI_Start(&recvs[q++]);
-					}
+			/* Apply inner filter using omp for, does not require having border data available. */
 
-					/* Send / receive diagonal data. */
-
-					if (r_se != MPI_PROC_NULL) // sendrecv southeast
-					{
-						MPI_Start(&sends[p++]);
-						MPI_Start(&recvs[q++]);
-					}
-
-					if (r_nw != MPI_PROC_NULL) // sendrecv northwest
-					{
-						MPI_Start(&sends[p++]);
-						MPI_Start(&recvs[q++]);
-					}
-
-					if (r_sw != MPI_PROC_NULL) // sendrecv southwest
-					{
-						MPI_Start(&sends[p++]);
-						MPI_Start(&recvs[q++]);
-					}
-
-					if (r_ne != MPI_PROC_NULL) // sendrecv northeast
-					{
-						MPI_Start(&sends[p++]);
-						MPI_Start(&recvs[q++]);
-					}
-				}
-
-				/* Apply inner filter using omp for, does not require having border data available. */
+#pragma omp parallel
+			{
+#pragma omp master
+				if (n == 0 && slave_rank == 0)
+					printf("Threads: %d\n", omp_get_num_threads());
 
 				apply_inner_filter_openmp(image_b, image_a, B + height + B, B + width + B);
-
-				/* If a neighbour is null, fill border buffer with edge image data. */
-#pragma omp master
-				{
-					if (r_s == MPI_PROC_NULL)
-						for (i = height + B; i < height + 2 * B; i++)
-							for (j = B; j < B + width; j++)
-								for (c = 0; c < CHANNELS; c++)
-									image_a[i][j][c] = image_a[B + height - 1][j][c];
-
-					if (r_n == MPI_PROC_NULL)
-						for (i = 0; i < B; i++)
-							for (j = B; j < B + width; j++)
-								for (c = 0; c < CHANNELS; c++)
-									image_a[i][j][c] = image_a[B][j][c];
-
-					if (r_e == MPI_PROC_NULL)
-						for (i = B; i < B + height; i++)
-							for (j = width + B; j < width + 2 * B; j++)
-								for (c = 0; c < CHANNELS; c++)
-									image_a[i][j][c] = image_a[i][B + width - 1][c];
-
-					if (r_w == MPI_PROC_NULL)
-						for (i = B; i < B + height; i++)
-							for (j = 0; j < B; j++)
-								for (c = 0; c < CHANNELS; c++)
-									image_a[i][j][c] = image_a[i][B][c];
-
-					if (r_se == MPI_PROC_NULL)
-						if (r_s == MPI_PROC_NULL && r_e == MPI_PROC_NULL) // use corner data
-							for (i = height + B; i < height + 2 * B; i++)
-								for (j = width + B; j < width + 2 * B; j++)
-									for (c = 0; c < CHANNELS; c++)
-										image_a[i][j][c] = image_a[B + height - 1][B + width - 1][c];
-
-					if (r_nw == MPI_PROC_NULL)
-						if (r_n == MPI_PROC_NULL && r_w == MPI_PROC_NULL) // use corner data
-							for (i = 0; i < B; i++)
-								for (j = 0; j < B; j++)
-									for (c = 0; c < CHANNELS; c++)
-										image_a[i][j][c] = image_a[B][B][c];
-
-					if (r_sw == MPI_PROC_NULL)
-						if (r_s == MPI_PROC_NULL && r_w == MPI_PROC_NULL) // use corner data
-							for (i = height + B; i < height + 2 * B; i++)
-								for (j = 0; j < B; j++)
-									for (c = 0; c < CHANNELS; c++)
-										image_a[i][j][c] = image_a[B + height - 1][B][c];
-
-					if (r_ne == MPI_PROC_NULL)
-						if (r_n == MPI_PROC_NULL && r_e == MPI_PROC_NULL) // use corner data
-							for (i = 0; i < B; i++)
-								for (j = width + B; j < width + 2 * B; j++)
-									for (c = 0; c < CHANNELS; c++)
-										image_a[i][j][c] = image_a[B][B + width - 1][c];
-
-					/* Wait for recvs, master thread handles MPI messaging. */
-
-					MPI_Waitall(q, recvs, recv_status);
-
-					/* Handle diagonal border data cases that require recvs to have completed, master can safely do it. */
-
-					if (r_se == MPI_PROC_NULL) // southeast
-					{
-						if (r_s != MPI_PROC_NULL) // get data from south (received)
-							for (i = height + B; i < height + 2 * B; i++)
-								for (j = width + B; j < width + 2 * B; j++)
-									for (c = 0; c < CHANNELS; c++)
-										image_a[i][j][c] = image_a[i][B + width - 1][c];
-						else if (r_e != MPI_PROC_NULL) // get data from east (received)
-							for (i = height + B; i < height + 2 * B; i++)
-								for (j = width + B; j < width + 2 * B; j++)
-									for (c = 0; c < CHANNELS; c++)
-										image_a[i][j][c] = image_a[B + height - 1][j][c];
-					}
-
-					if (r_nw == MPI_PROC_NULL) // northwest
-					{
-						if (r_n != MPI_PROC_NULL) // get data from north (received)
-							for (i = 0; i < B; i++)
-								for (j = 0; j < B; j++)
-									for (c = 0; c < CHANNELS; c++)
-										image_a[i][j][c] = image_a[i][B][c];
-						else if (r_w != MPI_PROC_NULL) // get data from west (received)
-							for (i = 0; i < B; i++)
-								for (j = 0; j < B; j++)
-									for (c = 0; c < CHANNELS; c++)
-										image_a[i][j][c] = image_a[B][j][c];
-					}
-
-					if (r_sw == MPI_PROC_NULL) // southwest
-					{
-						if (r_s != MPI_PROC_NULL) // get data from south (received)
-							for (i = height + B; i < height + 2 * B; i++)
-								for (j = 0; j < B; j++)
-									for (c = 0; c < CHANNELS; c++)
-										image_a[i][j][c] = image_a[i][B][c];
-						else if (r_w != MPI_PROC_NULL) // get data from west (received)
-							for (i = height + B; i < height + 2 * B; i++)
-								for (j = 0; j < B; j++)
-									for (c = 0; c < CHANNELS; c++)
-										image_a[i][j][c] = image_a[B + height - 1][j][c];
-					}
-
-					if (r_ne == MPI_PROC_NULL) // northeast
-					{
-						if (r_n != MPI_PROC_NULL) // get data from north (received)
-							for (i = 0; i < B; i++)
-								for (j = width + B; j < width + 2 * B; j++)
-									for (c = 0; c < CHANNELS; c++)
-										image_a[i][j][c] = image_a[i][B + width - 1][c];
-						else if (r_e != MPI_PROC_NULL) // get data from east (received)
-							for (i = 0; i < B; i++)
-								for (j = width + B; j < width + 2 * B; j++)
-									for (c = 0; c < CHANNELS; c++)
-										image_a[i][j][c] = image_a[B][j][c];
-					}
-
-
-					/* Apply outer filter, requires having all border data available. Master thread can safely do it. */
-
-					apply_outer_filter(image_b, image_a, B + height + B, B + width + B);
-
-					/* Wait for sends before we switch buffers. Master thread handles MPI messaging. */
-
-					MPI_Waitall(p, sends, send_status);
-
-					/* Switch current / previous image buffers. Master thread does it after sends have completed. */
-
-					float (**tmp)[CHANNELS];
-					tmp = image_b;
-					image_b = image_a;
-					image_a = tmp;
-
-					/* Check for convergence. */
-
-					if (convergence > 0 && n % convergence == 0)
-					{
-						int identical = images_identical(image_a, image_b, B + height + B, B + width + B) ? 1 : 0;
-						int all_identical = 0;
-
-						MPI_Allreduce(&identical, &all_identical, 1, MPI_INT, MPI_LAND, comm_slaves);
-
-						if (all_identical)
-						{
-							if (slave_rank == 0)
-								printf("Filter has converged after %d iterations.\n", n);
-
-							converged = true; // break not allowed from OpenMP structured block
-						}
-					}
-				}
-
-				/* Threads should not move to next iteration until master thread has finished switching buffers. */
-#pragma omp barrier
 			}
 
-			/* Take wall time measurement. */
+			/* If a neighbour is null, fill border buffer with edge image data. */
 
-#pragma omp master
+			if (r_s == MPI_PROC_NULL)
+				for (i = height + B; i < height + 2 * B; i++)
+					for (j = B; j < B + width; j++)
+						for (c = 0; c < CHANNELS; c++)
+							image_a[i][j][c] = image_a[B + height - 1][j][c];
+
+			if (r_n == MPI_PROC_NULL)
+				for (i = 0; i < B; i++)
+					for (j = B; j < B + width; j++)
+						for (c = 0; c < CHANNELS; c++)
+							image_a[i][j][c] = image_a[B][j][c];
+
+			if (r_e == MPI_PROC_NULL)
+				for (i = B; i < B + height; i++)
+					for (j = width + B; j < width + 2 * B; j++)
+						for (c = 0; c < CHANNELS; c++)
+							image_a[i][j][c] = image_a[i][B + width - 1][c];
+
+			if (r_w == MPI_PROC_NULL)
+				for (i = B; i < B + height; i++)
+					for (j = 0; j < B; j++)
+						for (c = 0; c < CHANNELS; c++)
+							image_a[i][j][c] = image_a[i][B][c];
+
+			if (r_se == MPI_PROC_NULL)
+				if (r_s == MPI_PROC_NULL && r_e == MPI_PROC_NULL) // use corner data
+					for (i = height + B; i < height + 2 * B; i++)
+						for (j = width + B; j < width + 2 * B; j++)
+							for (c = 0; c < CHANNELS; c++)
+								image_a[i][j][c] = image_a[B + height - 1][B + width - 1][c];
+
+			if (r_nw == MPI_PROC_NULL)
+				if (r_n == MPI_PROC_NULL && r_w == MPI_PROC_NULL) // use corner data
+					for (i = 0; i < B; i++)
+						for (j = 0; j < B; j++)
+							for (c = 0; c < CHANNELS; c++)
+								image_a[i][j][c] = image_a[B][B][c];
+
+			if (r_sw == MPI_PROC_NULL)
+				if (r_s == MPI_PROC_NULL && r_w == MPI_PROC_NULL) // use corner data
+					for (i = height + B; i < height + 2 * B; i++)
+						for (j = 0; j < B; j++)
+							for (c = 0; c < CHANNELS; c++)
+								image_a[i][j][c] = image_a[B + height - 1][B][c];
+
+			if (r_ne == MPI_PROC_NULL)
+				if (r_n == MPI_PROC_NULL && r_e == MPI_PROC_NULL) // use corner data
+					for (i = 0; i < B; i++)
+						for (j = width + B; j < width + 2 * B; j++)
+							for (c = 0; c < CHANNELS; c++)
+								image_a[i][j][c] = image_a[B][B + width - 1][c];
+
+			/* Wait for recvs, master thread handles MPI messaging. */
+
+			MPI_Waitall(q, recvs, recv_status);
+
+			/* Handle diagonal border data cases that require recvs to have completed, master can safely do it. */
+
+			if (r_se == MPI_PROC_NULL) // southeast
 			{
-				finish = MPI_Wtime();
+				if (r_s != MPI_PROC_NULL) // get data from south (received)
+					for (i = height + B; i < height + 2 * B; i++)
+						for (j = width + B; j < width + 2 * B; j++)
+							for (c = 0; c < CHANNELS; c++)
+								image_a[i][j][c] = image_a[i][B + width - 1][c];
+				else if (r_e != MPI_PROC_NULL) // get data from east (received)
+					for (i = height + B; i < height + 2 * B; i++)
+						for (j = width + B; j < width + 2 * B; j++)
+							for (c = 0; c < CHANNELS; c++)
+								image_a[i][j][c] = image_a[B + height - 1][j][c];
+			}
 
-				elapsed = finish - start;
+			if (r_nw == MPI_PROC_NULL) // northwest
+			{
+				if (r_n != MPI_PROC_NULL) // get data from north (received)
+					for (i = 0; i < B; i++)
+						for (j = 0; j < B; j++)
+							for (c = 0; c < CHANNELS; c++)
+								image_a[i][j][c] = image_a[i][B][c];
+				else if (r_w != MPI_PROC_NULL) // get data from west (received)
+					for (i = 0; i < B; i++)
+						for (j = 0; j < B; j++)
+							for (c = 0; c < CHANNELS; c++)
+								image_a[i][j][c] = image_a[B][j][c];
+			}
 
-				MPI_Reduce(&elapsed, &min_elapsed, 1, MPI_DOUBLE, MPI_MIN, 0, comm_slaves);
-				MPI_Reduce(&elapsed, &max_elapsed, 1, MPI_DOUBLE, MPI_MAX, 0, comm_slaves);
-				MPI_Reduce(&elapsed, &avg_elapsed, 1, MPI_DOUBLE, MPI_SUM, 0, comm_slaves);
-				avg_elapsed /= rows * columns;
+			if (r_sw == MPI_PROC_NULL) // southwest
+			{
+				if (r_s != MPI_PROC_NULL) // get data from south (received)
+					for (i = height + B; i < height + 2 * B; i++)
+						for (j = 0; j < B; j++)
+							for (c = 0; c < CHANNELS; c++)
+								image_a[i][j][c] = image_a[i][B][c];
+				else if (r_w != MPI_PROC_NULL) // get data from west (received)
+					for (i = height + B; i < height + 2 * B; i++)
+						for (j = 0; j < B; j++)
+							for (c = 0; c < CHANNELS; c++)
+								image_a[i][j][c] = image_a[B + height - 1][j][c];
+			}
 
-				// printf("Rank %d time elapsed: %lf seconds\n", rank, elapsed);
-				// MPI_Barrier(comm_slaves);
+			if (r_ne == MPI_PROC_NULL) // northeast
+			{
+				if (r_n != MPI_PROC_NULL) // get data from north (received)
+					for (i = 0; i < B; i++)
+						for (j = width + B; j < width + 2 * B; j++)
+							for (c = 0; c < CHANNELS; c++)
+								image_a[i][j][c] = image_a[i][B + width - 1][c];
+				else if (r_e != MPI_PROC_NULL) // get data from east (received)
+					for (i = 0; i < B; i++)
+						for (j = width + B; j < width + 2 * B; j++)
+							for (c = 0; c < CHANNELS; c++)
+								image_a[i][j][c] = image_a[B][j][c];
+			}
 
-				if (slave_rank == 0)
-					printf("Min: %lf, Max: %lf, Avg: %lf seconds\n", min_elapsed, max_elapsed, avg_elapsed);
+
+			/* Apply outer filter, requires having all border data available. Master thread can safely do it. */
+
+			apply_outer_filter(image_b, image_a, B + height + B, B + width + B);
+
+			/* Wait for sends before we switch buffers. Master thread handles MPI messaging. */
+
+			MPI_Waitall(p, sends, send_status);
+
+			/* Switch current / previous image buffers. Master thread does it after sends have completed. */
+
+			float (**tmp)[CHANNELS];
+			tmp = image_b;
+			image_b = image_a;
+			image_a = tmp;
+
+			/* Check for convergence. */
+
+			if (convergence > 0 && n % convergence == 0)
+			{
+				int identical = images_identical(image_a, image_b, B + height + B, B + width + B) ? 1 : 0;
+				int all_identical = 0;
+
+				MPI_Allreduce(&identical, &all_identical, 1, MPI_INT, MPI_LAND, comm_slaves);
+
+				if (all_identical)
+				{
+					if (slave_rank == 0)
+						printf("Filter has converged after %d iterations.\n", n);
+
+					converged = true; // break not allowed from OpenMP structured block
+				}
 			}
 		}
 
+
+		finish = MPI_Wtime();
+
+		elapsed = finish - start;
+
+		MPI_Reduce(&elapsed, &min_elapsed, 1, MPI_DOUBLE, MPI_MIN, 0, comm_slaves);
+		MPI_Reduce(&elapsed, &max_elapsed, 1, MPI_DOUBLE, MPI_MAX, 0, comm_slaves);
+		MPI_Reduce(&elapsed, &avg_elapsed, 1, MPI_DOUBLE, MPI_SUM, 0, comm_slaves);
+		avg_elapsed /= rows * columns;
+
+		// printf("Rank %d time elapsed: %lf seconds\n", rank, elapsed);
+		// MPI_Barrier(comm_slaves);
+
+		if (slave_rank == 0)
+			printf("Min: %lf, Max: %lf, Avg: %lf seconds\n", min_elapsed, max_elapsed, avg_elapsed);
 		/* Free memory allocated for requests. */
 
 		for (c = 0; c > p; c++)
