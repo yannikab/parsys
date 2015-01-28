@@ -183,11 +183,6 @@ int main_async(int argc, char** argv)
 
 		get_neighbours(comm_slaves, &r_n, &r_s, &r_e, &r_w, &r_nw, &r_se, &r_ne, &r_sw);
 
-		/* Determine if process is in odd or even row/column. */
-
-		bool even_row = in_even_row(slave_rank, comm_slaves);
-		bool even_column = in_even_column(slave_rank, comm_slaves);
-
 		/* Create border datatypes for communication between slaves. */
 
 		MPI_Datatype row_t, column_t, corner_t;
@@ -201,7 +196,7 @@ int main_async(int argc, char** argv)
 		MPI_Type_vector(B, B * CHANNELS, (B + width + B) * CHANNELS, MPI_FLOAT, &corner_t);
 		MPI_Type_commit(&corner_t);
 
-		/* Sends, receives, statuses. */
+		/* Arrays of sends, recvs, statuses. */
 
 		MPI_Request sends[8];
 		MPI_Request recvs[8];
@@ -231,110 +226,54 @@ int main_async(int argc, char** argv)
 
 			if (r_s != MPI_PROC_NULL) // sendrecv south
 			{
-				if (even_row)
-				{
-					MPI_Isend(&(image_a[height][B][0]), 1, row_t, r_s, 0, comm_slaves, &sends[p++]);
-					MPI_Irecv(&(image_a[height + B][B][0]), 1, row_t, r_s, 0, comm_slaves, &recvs[q++]);
-				} else // odd row
-				{
-					MPI_Irecv(&(image_a[height + B][B][0]), 1, row_t, r_s, 0, comm_slaves, &recvs[q++]);
-					MPI_Isend(&(image_a[height][B][0]), 1, row_t, r_s, 0, comm_slaves, &sends[p++]);
-				}
+				MPI_Isend(&(image_a[height][B][0]), 1, row_t, r_s, 0, comm_slaves, &sends[p++]);
+				MPI_Irecv(&(image_a[height + B][B][0]), 1, row_t, r_s, 0, comm_slaves, &recvs[q++]);
 			}
 
 			if (r_n != MPI_PROC_NULL) // sendrecv north
 			{
-				if (even_row)
-				{
-					MPI_Isend(&(image_a[B][B][0]), 1, row_t, r_n, 0, comm_slaves, &sends[p++]);
-					MPI_Irecv(&(image_a[0][B][0]), 1, row_t, r_n, 0, comm_slaves, &recvs[q++]);
-				} else // odd row
-				{
-					MPI_Irecv(&(image_a[0][B][0]), 1, row_t, r_n, 0, comm_slaves, &recvs[q++]);
-					MPI_Isend(&(image_a[B][B][0]), 1, row_t, r_n, 0, comm_slaves, &sends[p++]);
-				}
+				MPI_Isend(&(image_a[B][B][0]), 1, row_t, r_n, 0, comm_slaves, &sends[p++]);
+				MPI_Irecv(&(image_a[0][B][0]), 1, row_t, r_n, 0, comm_slaves, &recvs[q++]);
 			}
 
 			/* Send / receive horizontal data. */
 
 			if (r_e != MPI_PROC_NULL) // sendrecv east
 			{
-				if (even_column)
-				{
-					MPI_Isend(&(image_a[B][width][0]), 1, column_t, r_e, 0, comm_slaves, &sends[p++]);
-					MPI_Irecv(&(image_a[B][width + B][0]), 1, column_t, r_e, 0, comm_slaves, &recvs[q++]);
-				} else // odd column
-				{
-					MPI_Irecv(&(image_a[B][width + B][0]), 1, column_t, r_e, 0, comm_slaves, &recvs[q++]);
-					MPI_Isend(&(image_a[B][width][0]), 1, column_t, r_e, 0, comm_slaves, &sends[p++]);
-				}
+				MPI_Isend(&(image_a[B][width][0]), 1, column_t, r_e, 0, comm_slaves, &sends[p++]);
+				MPI_Irecv(&(image_a[B][width + B][0]), 1, column_t, r_e, 0, comm_slaves, &recvs[q++]);
 			}
 
 			if (r_w != MPI_PROC_NULL) // sendrecv west
 			{
-				if (even_column)
-				{
-					MPI_Isend(&(image_a[B][B][0]), 1, column_t, r_w, 0, comm_slaves, &sends[p++]);
-					MPI_Irecv(&(image_a[B][0][0]), 1, column_t, r_w, 0, comm_slaves, &recvs[q++]);
-				} else // odd column
-				{
-					MPI_Irecv(&(image_a[B][0][0]), 1, column_t, r_w, 0, comm_slaves, &recvs[q++]);
-					MPI_Isend(&(image_a[B][B][0]), 1, column_t, r_w, 0, comm_slaves, &sends[p++]);
-				}
+				MPI_Isend(&(image_a[B][B][0]), 1, column_t, r_w, 0, comm_slaves, &sends[p++]);
+				MPI_Irecv(&(image_a[B][0][0]), 1, column_t, r_w, 0, comm_slaves, &recvs[q++]);
 			}
 
 			/* Send / receive diagonal data. */
 
 			if (r_se != MPI_PROC_NULL) // sendrecv southeast
 			{
-				if (even_row)
-				{
-					MPI_Isend(&(image_a[height][width][0]), 1, corner_t, r_se, 0, comm_slaves, &sends[p++]);
-					MPI_Irecv(&(image_a[height + B][width + B][0]), 1, corner_t, r_se, 0, comm_slaves, &recvs[q++]);
-				} else // odd row
-				{
-					MPI_Irecv(&(image_a[height + B][width + B][0]), 1, corner_t, r_se, 0, comm_slaves, &recvs[q++]);
-					MPI_Isend(&(image_a[height][width][0]), 1, corner_t, r_se, 0, comm_slaves, &sends[p++]);
-				}
+				MPI_Isend(&(image_a[height][width][0]), 1, corner_t, r_se, 0, comm_slaves, &sends[p++]);
+				MPI_Irecv(&(image_a[height + B][width + B][0]), 1, corner_t, r_se, 0, comm_slaves, &recvs[q++]);
 			}
 
 			if (r_nw != MPI_PROC_NULL) // sendrecv northwest
 			{
-				if (even_row)
-				{
-					MPI_Isend(&(image_a[B][B][0]), 1, corner_t, r_nw, 0, comm_slaves, &sends[p++]);
-					MPI_Irecv(&(image_a[0][0][0]), 1, corner_t, r_nw, 0, comm_slaves, &recvs[q++]);
-				} else // odd row
-				{
-					MPI_Irecv(&(image_a[0][0][0]), 1, corner_t, r_nw, 0, comm_slaves, &recvs[q++]);
-					MPI_Isend(&(image_a[B][B][0]), 1, corner_t, r_nw, 0, comm_slaves, &sends[p++]);
-				}
+				MPI_Isend(&(image_a[B][B][0]), 1, corner_t, r_nw, 0, comm_slaves, &sends[p++]);
+				MPI_Irecv(&(image_a[0][0][0]), 1, corner_t, r_nw, 0, comm_slaves, &recvs[q++]);
 			}
 
 			if (r_sw != MPI_PROC_NULL) // sendrecv southwest
 			{
-				if (even_row)
-				{
-					MPI_Isend(&(image_a[height][B][0]), 1, corner_t, r_sw, 0, comm_slaves, &sends[p++]);
-					MPI_Irecv(&(image_a[height + B][0][0]), 1, corner_t, r_sw, 0, comm_slaves, &recvs[q++]);
-				} else // odd row
-				{
-					MPI_Irecv(&(image_a[height + B][0][0]), 1, corner_t, r_sw, 0, comm_slaves, &recvs[q++]);
-					MPI_Isend(&(image_a[height][B][0]), 1, corner_t, r_sw, 0, comm_slaves, &sends[p++]);
-				}
+				MPI_Isend(&(image_a[height][B][0]), 1, corner_t, r_sw, 0, comm_slaves, &sends[p++]);
+				MPI_Irecv(&(image_a[height + B][0][0]), 1, corner_t, r_sw, 0, comm_slaves, &recvs[q++]);
 			}
 
 			if (r_ne != MPI_PROC_NULL) // sendrecv northeast
 			{
-				if (even_row)
-				{
-					MPI_Isend(&(image_a[B][width][0]), 1, corner_t, r_ne, 0, comm_slaves, &sends[p++]);
-					MPI_Irecv(&(image_a[0][width + B][0]), 1, corner_t, r_ne, 0, comm_slaves, &recvs[q++]);
-				} else // odd row
-				{
-					MPI_Irecv(&(image_a[0][width + B][0]), 1, corner_t, r_ne, 0, comm_slaves, &recvs[q++]);
-					MPI_Isend(&(image_a[B][width][0]), 1, corner_t, r_ne, 0, comm_slaves, &sends[p++]);
-				}
+				MPI_Isend(&(image_a[B][width][0]), 1, corner_t, r_ne, 0, comm_slaves, &sends[p++]);
+				MPI_Irecv(&(image_a[0][width + B][0]), 1, corner_t, r_ne, 0, comm_slaves, &recvs[q++]);
 			}
 
 			/* Apply inner filter, does not require having border data available. */
@@ -399,7 +338,7 @@ int main_async(int argc, char** argv)
 
 			MPI_Waitall(q, recvs, recv_status);
 
-			/* Handle diagonal border data cases that require recvs to have been completed. */
+			/* Handle diagonal border data cases that require recvs to have completed. */
 
 			if (r_se == MPI_PROC_NULL) // southeast
 			{
@@ -490,6 +429,8 @@ int main_async(int argc, char** argv)
 			}
 		}
 
+		/* Take wall time measurement. */
+		
 		finish = MPI_Wtime();
 
 		elapsed = finish - start;
