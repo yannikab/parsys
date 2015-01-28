@@ -69,9 +69,9 @@ int main_async(int argc, char** argv)
 	{
 		printf("main_async()\n");
 		printf("Iterations: %d, Convergence: %d\n", iterations, convergence);
-		printf("Threads: %d\n", 1);
 		printf("rows: %d, columns: %d\n", rows, columns);
 		printf("width: %d, height: %d\n", width, height);
+		printf("Threads: %d\n", 1);
 
 		unsigned char (**image_buffer)[CHANNELS];
 
@@ -181,12 +181,12 @@ int main_async(int argc, char** argv)
 				for (c = 0; c < CHANNELS; c++)
 					curr_image[i][j][c] = (float) local_buffer[i][j][c];
 
-		/* Get neighbouring process ranks. */
+		/* Get neighboring process ranks. */
 
 		int r_n, r_s, r_e, r_w;
 		int r_ne, r_nw, r_se, r_sw;
 
-		get_neighbours(comm_slaves, &r_n, &r_s, &r_e, &r_w, &r_nw, &r_se, &r_ne, &r_sw);
+		get_neighbors(comm_slaves, &r_n, &r_s, &r_e, &r_w, &r_nw, &r_se, &r_ne, &r_sw);
 
 		/* Create border datatypes for communication between slaves. */
 
@@ -307,7 +307,7 @@ int main_async(int argc, char** argv)
 
 		for (n = 0; iterations == 0 || n < iterations; n++)
 		{
-			/* Select appropriate sends/recvs depending on n (active buffer). */
+			/* Select appropriate sends/recvs depending on active image buffer. */
 
 			MPI_Request *sends = (curr_image == image_a) ? (sends_a) : (curr_image == image_b ? sends_b : NULL);
 			MPI_Request *recvs = (curr_image == image_a) ? (recvs_a) : (curr_image == image_b ? recvs_b : NULL);
@@ -375,7 +375,7 @@ int main_async(int argc, char** argv)
 
 			apply_inner_filter(prev_image, curr_image, B + height + B, B + width + B);
 
-			/* If a neighbour is null, fill border buffer with edge image data. */
+			/* If a neighbor is null, fill border buffer with edge image data. */
 
 			if (r_s == MPI_PROC_NULL)
 				for (i = height + B; i < height + 2 * B; i++)
@@ -519,6 +519,7 @@ int main_async(int argc, char** argv)
 				{
 					if (slave_rank == 0)
 						printf("Filter has converged after %d iterations.\n", n);
+						
 					break;
 				}
 			}
@@ -533,6 +534,7 @@ int main_async(int argc, char** argv)
 		MPI_Reduce(&elapsed, &min_elapsed, 1, MPI_DOUBLE, MPI_MIN, 0, comm_slaves);
 		MPI_Reduce(&elapsed, &max_elapsed, 1, MPI_DOUBLE, MPI_MAX, 0, comm_slaves);
 		MPI_Reduce(&elapsed, &avg_elapsed, 1, MPI_DOUBLE, MPI_SUM, 0, comm_slaves);
+		
 		avg_elapsed /= rows * columns;
 
 		// printf("Rank %d time elapsed: %lf seconds\n", rank, elapsed);
@@ -543,16 +545,16 @@ int main_async(int argc, char** argv)
 
 		/* Free memory allocated for requests. */
 
-		for (n = 0; n > p; n++)
+		for (c = 0; c > p; c++)
 		{
-			MPI_Request_free(&sends_a[n]);
-			MPI_Request_free(&sends_b[n]);
+			MPI_Request_free(&sends_a[c]);
+			MPI_Request_free(&sends_b[c]);
 		}
 
-		for (n = 0; n > q; n++)
+		for (c = 0; c > q; c++)
 		{
-			MPI_Request_free(&recvs_a[n]);
-			MPI_Request_free(&recvs_b[n]);
+			MPI_Request_free(&recvs_a[c]);
+			MPI_Request_free(&recvs_b[c]);
 		}
 
 		/* Convert float data back to byte for sending to master process. */

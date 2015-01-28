@@ -12,7 +12,7 @@
 
 #include "topology.h"
 
-void get_neighbours(MPI_Comm comm, int *n_p, int *s_p, int *e_p, int *w_p, int *nw_p, int *se_p, int *ne_p, int *sw_p)
+void get_neighbors(MPI_Comm comm, int *n_p, int *s_p, int *e_p, int *w_p, int *nw_p, int *se_p, int *ne_p, int *sw_p)
 {
 	int north[2], south[2], east[2], west[2];
 	int nw[2], se[2], ne[2], sw[2];

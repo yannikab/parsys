@@ -141,7 +141,7 @@ void apply_inner_filter_openmp(float (**output_image)[CHANNELS], float (**input_
 	}
 }
 
-bool images_identical(float (**output_image)[CHANNELS], float (**input_image)[CHANNELS], int height, int width)
+bool images_identical(float (**first_image)[CHANNELS], float (**second_image)[CHANNELS], int height, int width)
 {
 	unsigned int i, j, c;
 
@@ -153,7 +153,7 @@ bool images_identical(float (**output_image)[CHANNELS], float (**input_image)[CH
 		{
 			for (c = 0; c < CHANNELS; c++)
 			{
-				if ((int) output_image[i][j][c] != (int) input_image[i][j][c])
+				if ((int) first_image[i][j][c] != (int) second_image[i][j][c])
 				{
 					identical = false;
 					break;

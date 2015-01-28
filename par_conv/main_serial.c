@@ -142,10 +142,10 @@ int main_serial(int argc, char** argv)
 
 			/* Switch current / previous image buffers. */
 
-			float (**tmp)[CHANNELS];
-			tmp = prev_image;
+			float (**temp)[CHANNELS];
+			temp = prev_image;
 			prev_image = curr_image;
-			curr_image = tmp;
+			curr_image = temp;
 
 			/* Check for convergence. */
 
