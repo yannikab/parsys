@@ -177,7 +177,15 @@ int main_serial(int argc, char** argv)
                     image_buffer[i][j][c] = (unsigned char) curr_image[i + B][j + B][c];
     }
 
+    /* Create output files, one for each channel. */
+
     write_channels(image_buffer, HEIGHT, WIDTH);
+
+    /* Free allocated memory. */
+
+    dealloc_uchar_array((unsigned char ***) &image_buffer);
+    dealloc_float_array((float ***) &curr_image);
+    dealloc_float_array((float ***) &prev_image);
 
     return (EXIT_SUCCESS);
 }

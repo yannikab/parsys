@@ -113,7 +113,15 @@ int main_sync_omp(int argc, char** argv)
         for (r = 0; r < rows * columns; r++)
             MPI_Recv(&(image_buffer[coords[r][0] * height][coords[r][1] * width][0]), 1, local_image_t, r + 1, 0, MPI_COMM_WORLD, &status);
 
+        /* Create output files, one for each channel. */
+
         write_channels(image_buffer, HEIGHT, WIDTH);
+
+        /* Free allocated memory. */
+
+        dealloc_uchar_array((unsigned char ***) &image_buffer);
+        free(coords);
+        MPI_Type_free(&local_image_t);
 
     } else // slaves
     {
@@ -512,6 +520,17 @@ int main_sync_omp(int argc, char** argv)
         /* Send results back to master. */
 
         MPI_Send(&(local_buffer[B][B][0]), 1, local_buffer_t, master, 0, MPI_COMM_WORLD);
+
+        /* Free allocated memory. */
+
+        dealloc_uchar_array((unsigned char ***) &local_buffer);
+        dealloc_float_array((float ***) &curr_image);
+        dealloc_float_array((float ***) &prev_image);
+
+        MPI_Type_free(&local_buffer_t);
+        MPI_Type_free(&row_t);
+        MPI_Type_free(&column_t);
+        MPI_Type_free(&corner_t);
     }
 
     MPI_Finalize();
