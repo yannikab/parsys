@@ -10,10 +10,7 @@
             <sourceEncoding>UTF-8</sourceEncoding>
             <make-dep-projects/>
             <sourceRootList>
-                <sourceRootElem>async</sourceRootElem>
-                <sourceRootElem>sync</sourceRootElem>
-                <sourceRootElem>serial</sourceRootElem>
-                <sourceRootElem>common</sourceRootElem>
+                <sourceRootElem>.</sourceRootElem>
             </sourceRootList>
             <confList>
                 <confElem>
