@@ -8,17 +8,10 @@
 #ifndef SETTINGS_H
 #define	SETTINGS_H
 
-// di linux lab
+#include <stdbool.h>
+
 #define INDIR "/tmp/stud0781/input/1.00x/"
 #define OUTDIR "/tmp/stud0781/parallel/"
-
-// google cloud
-// #define INDIR "/mnt/disk-1/John/input/1.00x/"
-// #define OUTDIR "/mnt/disk-1/John/parallel/"
-
-// home
-// #define INDIR "../input/1.00x/"
-// #define OUTDIR "../parallel/"
 
 #define INFILENAME "waterfall_1920_2520.raw"
 #define OUTFILENAME "waterfall_1920_2520_out.raw"
@@ -27,5 +20,7 @@
 #define HEIGHT 2520
 
 #define CHANNELS 3
+
+#define MAKETIFF true
 
 #endif	/* SETTINGS_H */

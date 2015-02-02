@@ -432,6 +432,7 @@ int main_async_nonper(int argc, char** argv)
                 {
                     if (slave_rank == 0)
                         printf("Filter has converged after %d iterations.\n", n);
+					
                     break;
                 }
             }
