@@ -53,7 +53,7 @@ int main_sync(int argc, char** argv)
     int width = WIDTH / columns;
     int height = HEIGHT / rows;
 
-    /* Create slaves communicator excluding rank 0 (master). */
+    /* Create workers communicator excluding rank 0 (master). */
 
     MPI_Group MPI_GROUP_WORLD, group_excl;
     MPI_Comm comm_excl;
@@ -62,8 +62,6 @@ int main_sync(int argc, char** argv)
     int ranks[] = {0};
     MPI_Group_excl(MPI_GROUP_WORLD, 1, ranks, &group_excl);
     MPI_Comm_create(MPI_COMM_WORLD, group_excl, &comm_excl);
-
-    MPI_Status status;
 
     if (rank == 0) // master
     {
@@ -85,17 +83,12 @@ int main_sync(int argc, char** argv)
 
         coords = malloc(rows * columns * sizeof (*coords));
 
-        /* Receive and store cartesian coordinates from each slave process. */
+        /* Receive and store cartesian coordinates from each worker process. */
 
         unsigned int r;
 
-        // printf("\n");
         for (r = 0; r < rows * columns; r++)
-        {
-            MPI_Recv(coords[r], 2, MPI_INT, r + 1, 0, MPI_COMM_WORLD, &status);
-            // printf("rank %d row:%d col:%d\n", r + 1, coords[r][0], coords[r][1]);
-        }
-        // printf("\n");
+            MPI_Recv(coords[r], 2, MPI_INT, r + 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
         /* Create "subarray" datatype. */
 
@@ -108,10 +101,10 @@ int main_sync(int argc, char** argv)
         for (r = 0; r < rows * columns; r++)
             MPI_Send(&(image_buffer[coords[r][0] * height][coords[r][1] * width][0]), 1, local_image_t, r + 1, 0, MPI_COMM_WORLD);
 
-        /* Receive processed output from slave processes. */
+        /* Receive processed output from worker processes. */
 
         for (r = 0; r < rows * columns; r++)
-            MPI_Recv(&(image_buffer[coords[r][0] * height][coords[r][1] * width][0]), 1, local_image_t, r + 1, 0, MPI_COMM_WORLD, &status);
+            MPI_Recv(&(image_buffer[coords[r][0] * height][coords[r][1] * width][0]), 1, local_image_t, r + 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
         /* Create output files, one for each channel. */
 
@@ -123,23 +116,22 @@ int main_sync(int argc, char** argv)
         free(coords);
         MPI_Type_free(&local_image_t);
 
-    } else // slaves
+    } else // workers
     {
-        /* Create cartesian coordinates communicator for slaves. */
+        /* Create cartesian coordinates communicator for workers. */
 
-        MPI_Comm comm_slaves;
+        MPI_Comm comm_workers;
 
         int ndims = 2;
         int dims[] = {rows, columns};
         int periods[] = {0, 0};
 
-        MPI_Cart_create(comm_excl, ndims, dims, periods, true, &comm_slaves);
+        MPI_Cart_create(comm_excl, ndims, dims, periods, true, &comm_workers);
 
-        /* Determine rank in slaves communicator. */
+        /* Determine rank in workers communicator. */
 
-        int slave_rank;
-        MPI_Comm_rank(comm_slaves, &slave_rank);
-        // printf("Rank: %d, Slave rank: %d\n", rank, slave_rank);
+        int worker_rank;
+        MPI_Comm_rank(comm_workers, &worker_rank);
 
         /* Send cartesian coordinates to master. */
 
@@ -147,7 +139,7 @@ int main_sync(int argc, char** argv)
 
         int cart_coords[2];
 
-        MPI_Cart_coords(comm_slaves, slave_rank, 2, cart_coords);
+        MPI_Cart_coords(comm_workers, worker_rank, 2, cart_coords);
         MPI_Send(cart_coords, 2, MPI_INT, master, 0, MPI_COMM_WORLD);
 
         /* Allocate memory for local buffer. */
@@ -164,8 +156,8 @@ int main_sync(int argc, char** argv)
 
         /* Receive local image data from master. */
 
+        MPI_Recv(&(local_buffer[B][B][0]), 1, local_buffer_t, master, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         // int received;
-        MPI_Recv(&(local_buffer[B][B][0]), 1, local_buffer_t, master, 0, MPI_COMM_WORLD, &status);
         // MPI_Get_count(&status, MPI_FLOAT, &received);
         // printf("Rank: %d, Received: %d.\n", rank, received);
 
@@ -190,14 +182,14 @@ int main_sync(int argc, char** argv)
         int r_n, r_s, r_e, r_w;
         int r_ne, r_nw, r_se, r_sw;
 
-        get_neighbors(comm_slaves, &r_n, &r_s, &r_e, &r_w, &r_nw, &r_se, &r_ne, &r_sw);
+        get_neighbors(comm_workers, &r_n, &r_s, &r_e, &r_w, &r_nw, &r_se, &r_ne, &r_sw);
 
         /* Determine if process is in odd or even row/column. */
 
-        bool even_row = in_even_row(slave_rank, comm_slaves);
-        bool even_column = in_even_column(slave_rank, comm_slaves);
+        bool even_row = in_even_row(worker_rank, comm_workers);
+        bool even_column = in_even_column(worker_rank, comm_workers);
 
-        /* Create border datatypes for communication between slaves. */
+        /* Create border datatypes for communication between workers. */
 
         MPI_Datatype row_t, column_t, corner_t;
 
@@ -214,7 +206,7 @@ int main_sync(int argc, char** argv)
 
         double start, finish, elapsed, min_elapsed, max_elapsed, avg_elapsed;
 
-        MPI_Barrier(comm_slaves);
+        MPI_Barrier(comm_workers);
         start = MPI_Wtime();
 
         /* Apply filter. */
@@ -229,27 +221,27 @@ int main_sync(int argc, char** argv)
             {
                 if (r_s != MPI_PROC_NULL) // sendrecv south
                 {
-                    MPI_Send(&(curr_image[height][B][0]), 1, row_t, r_s, 0, comm_slaves);
-                    MPI_Recv(&(curr_image[height + B][B][0]), 1, row_t, r_s, 0, comm_slaves, &status);
+                    MPI_Send(&(curr_image[height][B][0]), 1, row_t, r_s, 0, comm_workers);
+                    MPI_Recv(&(curr_image[height + B][B][0]), 1, row_t, r_s, 0, comm_workers, MPI_STATUS_IGNORE);
                 }
 
                 if (r_n != MPI_PROC_NULL) // sendrecv north
                 {
-                    MPI_Send(&(curr_image[B][B][0]), 1, row_t, r_n, 0, comm_slaves);
-                    MPI_Recv(&(curr_image[0][B][0]), 1, row_t, r_n, 0, comm_slaves, &status);
+                    MPI_Send(&(curr_image[B][B][0]), 1, row_t, r_n, 0, comm_workers);
+                    MPI_Recv(&(curr_image[0][B][0]), 1, row_t, r_n, 0, comm_workers, MPI_STATUS_IGNORE);
                 }
             } else // odd row
             {
                 if (r_n != MPI_PROC_NULL) // sendrecv north
                 {
-                    MPI_Recv(&(curr_image[0][B][0]), 1, row_t, r_n, 0, comm_slaves, &status);
-                    MPI_Send(&(curr_image[B][B][0]), 1, row_t, r_n, 0, comm_slaves);
+                    MPI_Recv(&(curr_image[0][B][0]), 1, row_t, r_n, 0, comm_workers, MPI_STATUS_IGNORE);
+                    MPI_Send(&(curr_image[B][B][0]), 1, row_t, r_n, 0, comm_workers);
                 }
 
                 if (r_s != MPI_PROC_NULL) // sendrecv south
                 {
-                    MPI_Recv(&(curr_image[height + B][B][0]), 1, row_t, r_s, 0, comm_slaves, &status);
-                    MPI_Send(&(curr_image[height][B][0]), 1, row_t, r_s, 0, comm_slaves);
+                    MPI_Recv(&(curr_image[height + B][B][0]), 1, row_t, r_s, 0, comm_workers, MPI_STATUS_IGNORE);
+                    MPI_Send(&(curr_image[height][B][0]), 1, row_t, r_s, 0, comm_workers);
                 }
             }
 
@@ -259,27 +251,27 @@ int main_sync(int argc, char** argv)
             {
                 if (r_e != MPI_PROC_NULL) // sendrecv east
                 {
-                    MPI_Send(&(curr_image[B][width][0]), 1, column_t, r_e, 0, comm_slaves);
-                    MPI_Recv(&(curr_image[B][width + B][0]), 1, column_t, r_e, 0, comm_slaves, &status);
+                    MPI_Send(&(curr_image[B][width][0]), 1, column_t, r_e, 0, comm_workers);
+                    MPI_Recv(&(curr_image[B][width + B][0]), 1, column_t, r_e, 0, comm_workers, MPI_STATUS_IGNORE);
                 }
 
                 if (r_w != MPI_PROC_NULL) // sendrecv west
                 {
-                    MPI_Send(&(curr_image[B][B][0]), 1, column_t, r_w, 0, comm_slaves);
-                    MPI_Recv(&(curr_image[B][0][0]), 1, column_t, r_w, 0, comm_slaves, &status);
+                    MPI_Send(&(curr_image[B][B][0]), 1, column_t, r_w, 0, comm_workers);
+                    MPI_Recv(&(curr_image[B][0][0]), 1, column_t, r_w, 0, comm_workers, MPI_STATUS_IGNORE);
                 }
             } else // odd column
             {
                 if (r_w != MPI_PROC_NULL) // sendrecv west
                 {
-                    MPI_Recv(&(curr_image[B][0][0]), 1, column_t, r_w, 0, comm_slaves, &status);
-                    MPI_Send(&(curr_image[B][B][0]), 1, column_t, r_w, 0, comm_slaves);
+                    MPI_Recv(&(curr_image[B][0][0]), 1, column_t, r_w, 0, comm_workers, MPI_STATUS_IGNORE);
+                    MPI_Send(&(curr_image[B][B][0]), 1, column_t, r_w, 0, comm_workers);
                 }
 
                 if (r_e != MPI_PROC_NULL) // sendrecv east
                 {
-                    MPI_Recv(&(curr_image[B][width + B][0]), 1, column_t, r_e, 0, comm_slaves, &status);
-                    MPI_Send(&(curr_image[B][width][0]), 1, column_t, r_e, 0, comm_slaves);
+                    MPI_Recv(&(curr_image[B][width + B][0]), 1, column_t, r_e, 0, comm_workers, MPI_STATUS_IGNORE);
+                    MPI_Send(&(curr_image[B][width][0]), 1, column_t, r_e, 0, comm_workers);
                 }
             }
 
@@ -289,51 +281,51 @@ int main_sync(int argc, char** argv)
             {
                 if (r_se != MPI_PROC_NULL) // sendrecv southeast
                 {
-                    MPI_Send(&(curr_image[height][width][0]), 1, corner_t, r_se, 0, comm_slaves);
-                    MPI_Recv(&(curr_image[height + B][width + B][0]), 1, corner_t, r_se, 0, comm_slaves, &status);
+                    MPI_Send(&(curr_image[height][width][0]), 1, corner_t, r_se, 0, comm_workers);
+                    MPI_Recv(&(curr_image[height + B][width + B][0]), 1, corner_t, r_se, 0, comm_workers, MPI_STATUS_IGNORE);
                 }
 
                 if (r_nw != MPI_PROC_NULL) // sendrecv northwest
                 {
-                    MPI_Send(&(curr_image[B][B][0]), 1, corner_t, r_nw, 0, comm_slaves);
-                    MPI_Recv(&(curr_image[0][0][0]), 1, corner_t, r_nw, 0, comm_slaves, &status);
+                    MPI_Send(&(curr_image[B][B][0]), 1, corner_t, r_nw, 0, comm_workers);
+                    MPI_Recv(&(curr_image[0][0][0]), 1, corner_t, r_nw, 0, comm_workers, MPI_STATUS_IGNORE);
                 }
 
                 if (r_sw != MPI_PROC_NULL) // sendrecv southwest
                 {
-                    MPI_Send(&(curr_image[height][B][0]), 1, corner_t, r_sw, 0, comm_slaves);
-                    MPI_Recv(&(curr_image[height + B][0][0]), 1, corner_t, r_sw, 0, comm_slaves, &status);
+                    MPI_Send(&(curr_image[height][B][0]), 1, corner_t, r_sw, 0, comm_workers);
+                    MPI_Recv(&(curr_image[height + B][0][0]), 1, corner_t, r_sw, 0, comm_workers, MPI_STATUS_IGNORE);
                 }
 
                 if (r_ne != MPI_PROC_NULL) // sendrecv northeast
                 {
-                    MPI_Send(&(curr_image[B][width][0]), 1, corner_t, r_ne, 0, comm_slaves);
-                    MPI_Recv(&(curr_image[0][width + B][0]), 1, corner_t, r_ne, 0, comm_slaves, &status);
+                    MPI_Send(&(curr_image[B][width][0]), 1, corner_t, r_ne, 0, comm_workers);
+                    MPI_Recv(&(curr_image[0][width + B][0]), 1, corner_t, r_ne, 0, comm_workers, MPI_STATUS_IGNORE);
                 }
             } else // odd row
             {
                 if (r_nw != MPI_PROC_NULL) // sendrecv northwest
                 {
-                    MPI_Recv(&(curr_image[0][0][0]), 1, corner_t, r_nw, 0, comm_slaves, &status);
-                    MPI_Send(&(curr_image[B][B][0]), 1, corner_t, r_nw, 0, comm_slaves);
+                    MPI_Recv(&(curr_image[0][0][0]), 1, corner_t, r_nw, 0, comm_workers, MPI_STATUS_IGNORE);
+                    MPI_Send(&(curr_image[B][B][0]), 1, corner_t, r_nw, 0, comm_workers);
                 }
 
                 if (r_se != MPI_PROC_NULL) // sendrecv southeast
                 {
-                    MPI_Recv(&(curr_image[height + B][width + B][0]), 1, corner_t, r_se, 0, comm_slaves, &status);
-                    MPI_Send(&(curr_image[height][width][0]), 1, corner_t, r_se, 0, comm_slaves);
+                    MPI_Recv(&(curr_image[height + B][width + B][0]), 1, corner_t, r_se, 0, comm_workers, MPI_STATUS_IGNORE);
+                    MPI_Send(&(curr_image[height][width][0]), 1, corner_t, r_se, 0, comm_workers);
                 }
 
                 if (r_ne != MPI_PROC_NULL) // sendrecv northeast
                 {
-                    MPI_Recv(&(curr_image[0][width + B][0]), 1, corner_t, r_ne, 0, comm_slaves, &status);
-                    MPI_Send(&(curr_image[B][width][0]), 1, corner_t, r_ne, 0, comm_slaves);
+                    MPI_Recv(&(curr_image[0][width + B][0]), 1, corner_t, r_ne, 0, comm_workers, MPI_STATUS_IGNORE);
+                    MPI_Send(&(curr_image[B][width][0]), 1, corner_t, r_ne, 0, comm_workers);
                 }
 
                 if (r_sw != MPI_PROC_NULL) // sendrecv southwest
                 {
-                    MPI_Recv(&(curr_image[height + B][0][0]), 1, corner_t, r_sw, 0, comm_slaves, &status);
-                    MPI_Send(&(curr_image[height][B][0]), 1, corner_t, r_sw, 0, comm_slaves);
+                    MPI_Recv(&(curr_image[height + B][0][0]), 1, corner_t, r_sw, 0, comm_workers, MPI_STATUS_IGNORE);
+                    MPI_Send(&(curr_image[height][B][0]), 1, corner_t, r_sw, 0, comm_workers);
                 }
             }
 
@@ -450,9 +442,9 @@ int main_sync(int argc, char** argv)
             /* Switch current / previous image buffers. */
 
             float (**temp)[CHANNELS];
-            temp = prev_image;
-            prev_image = curr_image;
-            curr_image = temp;
+            temp = curr_image;
+            curr_image = prev_image;
+            prev_image = temp;
 
             /* Check for convergence. */
 
@@ -461,11 +453,11 @@ int main_sync(int argc, char** argv)
                 int identical = images_identical(curr_image, prev_image, B + height + B, B + width + B) ? 1 : 0;
                 int all_identical = 0;
 
-                MPI_Allreduce(&identical, &all_identical, 1, MPI_INT, MPI_LAND, comm_slaves);
+                MPI_Allreduce(&identical, &all_identical, 1, MPI_INT, MPI_LAND, comm_workers);
 
                 if (all_identical)
                 {
-                    if (slave_rank == 0)
+                    if (worker_rank == 0)
                         printf("Filter has converged after %d iterations.\n", n);
                     break;
                 }
@@ -478,16 +470,16 @@ int main_sync(int argc, char** argv)
 
         elapsed = finish - start;
 
-        MPI_Reduce(&elapsed, &min_elapsed, 1, MPI_DOUBLE, MPI_MIN, 0, comm_slaves);
-        MPI_Reduce(&elapsed, &max_elapsed, 1, MPI_DOUBLE, MPI_MAX, 0, comm_slaves);
-        MPI_Reduce(&elapsed, &avg_elapsed, 1, MPI_DOUBLE, MPI_SUM, 0, comm_slaves);
+        MPI_Reduce(&elapsed, &min_elapsed, 1, MPI_DOUBLE, MPI_MIN, 0, comm_workers);
+        MPI_Reduce(&elapsed, &max_elapsed, 1, MPI_DOUBLE, MPI_MAX, 0, comm_workers);
+        MPI_Reduce(&elapsed, &avg_elapsed, 1, MPI_DOUBLE, MPI_SUM, 0, comm_workers);
 
         avg_elapsed /= rows * columns;
 
         // printf("Rank %d time elapsed: %lf seconds\n", rank, elapsed);
-        // MPI_Barrier(comm_slaves);
+        // MPI_Barrier(comm_workers);
 
-        if (slave_rank == 0)
+        if (worker_rank == 0)
             printf("Min: %lf, Max: %lf, Avg: %lf seconds\n", min_elapsed, max_elapsed, avg_elapsed);
 
         /* Convert float data back to byte for sending to master process. */
