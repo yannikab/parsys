@@ -169,7 +169,7 @@ int main_async_nonper(int argc, char** argv)
         alloc_float_array((float ***) &curr_image, B + height + B, B + width + B, CHANNELS);
         alloc_float_array((float ***) &prev_image, B + height + B, B + width + B, CHANNELS);
 
-        /* Copy recv/send buffer data to current image, converting to float for arithmetic operations. */
+        /* Copy uchar buffer data to current image, converting to float for arithmetic operations. */
 
         for (i = 0; i < B + height + B; i++)
             for (j = 0; j < B + width + B; j++)

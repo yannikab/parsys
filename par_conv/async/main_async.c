@@ -174,7 +174,7 @@ int main_async(int argc, char** argv)
         float (**curr_image)[CHANNELS] = image_a;
         float (**prev_image)[CHANNELS] = image_b;
 
-        /* Copy recv/send buffer data to current image, converting to float for arithmetic operations. */
+        /* Copy uchar buffer data to current image, converting to float for arithmetic operations. */
 
         for (i = 0; i < B + height + B; i++)
             for (j = 0; j < B + width + B; j++)
