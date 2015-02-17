@@ -82,7 +82,7 @@ int main_serial(int argc, char** argv)
 
     if (ok)
     {
-        for (n = 0; iterations == 0 || n < iterations; n++)
+        for (n = 0; (iterations == 0 || n < iterations) && (iterations != 0 || convergence != 0); n++)
         {
             /* Fill borders with outer image data. */
 

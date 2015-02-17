@@ -83,7 +83,7 @@ int main_serial_omp(int argc, char** argv)
     {
         /* Apply filter. */
 
-        for (n = 0; iterations == 0 || n < iterations; n++)
+        for (n = 0; (iterations == 0 || n < iterations) && (iterations != 0 || convergence != 0); n++)
         {
             /* Fill borders with outer image data. */
 

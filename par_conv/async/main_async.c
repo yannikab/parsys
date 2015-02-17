@@ -132,7 +132,7 @@ int main_async(int argc, char** argv)
 
         int worker_rank;
         MPI_Comm_rank(comm_workers, &worker_rank);
-        
+
         /* Send cartesian coordinates to master. */
 
         int master = 0;
@@ -305,7 +305,7 @@ int main_async(int argc, char** argv)
 
         unsigned int n;
 
-        for (n = 0; iterations == 0 || n < iterations; n++)
+        for (n = 0; (iterations == 0 || n < iterations) && (iterations != 0 || convergence != 0); n++)
         {
             /* Select appropriate sends/recvs depending on active image buffer. */
 

@@ -213,7 +213,7 @@ int main_sync(int argc, char** argv)
 
         unsigned int n;
 
-        for (n = 0; iterations == 0 || n < iterations; n++)
+        for (n = 0; (iterations == 0 || n < iterations) && (iterations != 0 || convergence != 0); n++)
         {
             /* Send / receive vertical data. */
 

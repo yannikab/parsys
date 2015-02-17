@@ -215,7 +215,7 @@ int main_async_nonper(int argc, char** argv)
 
         unsigned int n;
 
-        for (n = 0; iterations == 0 || n < iterations; n++)
+        for (n = 0; (iterations == 0 || n < iterations) && (iterations != 0 || convergence != 0); n++)
         {
             /* Reset send/recv indexes. */
 
@@ -424,7 +424,7 @@ int main_async_nonper(int argc, char** argv)
                 {
                     if (worker_rank == 0)
                         printf("Filter has converged after %d iterations.\n", n);
-					
+
                     break;
                 }
             }

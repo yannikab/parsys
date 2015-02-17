@@ -313,7 +313,7 @@ int main_async_omp(int argc, char** argv)
 
             unsigned int n;
 
-            for (n = 0; !converged && (iterations == 0 || n < iterations); n++)
+            for (n = 0; !converged && (iterations == 0 || n < iterations) && (iterations != 0 || convergence != 0); n++)
             {
                 /* Select appropriate sends/recvs depending on active image buffer. */
 

@@ -223,7 +223,7 @@ int main_sync_omp(int argc, char** argv)
 
             unsigned int n;
 
-            for (n = 0; !converged && (iterations == 0 || n < iterations); n++)
+            for (n = 0; !converged && (iterations == 0 || n < iterations) && (iterations != 0 || convergence != 0); n++)
             {
 #pragma omp master // master thread handles MPI messaging
                 {
@@ -456,10 +456,10 @@ int main_sync_omp(int argc, char** argv)
 
                     /* Switch current / previous image buffers. */
 
-            float (**temp)[CHANNELS];
-            temp = curr_image;
-            curr_image = prev_image;
-            prev_image = temp;
+                    float (**temp)[CHANNELS];
+                    temp = curr_image;
+                    curr_image = prev_image;
+                    prev_image = temp;
 
                     /* Check for convergence. */
 
