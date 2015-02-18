@@ -64,8 +64,6 @@ int main_sync_omp(int argc, char** argv)
     MPI_Group_excl(MPI_GROUP_WORLD, 1, ranks, &group_excl);
     MPI_Comm_create(MPI_COMM_WORLD, group_excl, &comm_excl);
 
-    MPI_Status status;
-
     if (rank == 0) // master
     {
         printf("main_sync_omp()\n");
@@ -234,25 +232,25 @@ int main_sync_omp(int argc, char** argv)
                         if (r_s != MPI_PROC_NULL) // sendrecv south
                         {
                             MPI_Send(&(curr_image[height][B][0]), 1, row_t, r_s, 0, comm_workers);
-                            MPI_Recv(&(curr_image[height + B][B][0]), 1, row_t, r_s, 0, comm_workers, &status);
+                            MPI_Recv(&(curr_image[height + B][B][0]), 1, row_t, r_s, 0, comm_workers, MPI_STATUS_IGNORE);
                         }
 
                         if (r_n != MPI_PROC_NULL) // sendrecv north
                         {
                             MPI_Send(&(curr_image[B][B][0]), 1, row_t, r_n, 0, comm_workers);
-                            MPI_Recv(&(curr_image[0][B][0]), 1, row_t, r_n, 0, comm_workers, &status);
+                            MPI_Recv(&(curr_image[0][B][0]), 1, row_t, r_n, 0, comm_workers, MPI_STATUS_IGNORE);
                         }
                     } else // odd row
                     {
                         if (r_n != MPI_PROC_NULL) // sendrecv north
                         {
-                            MPI_Recv(&(curr_image[0][B][0]), 1, row_t, r_n, 0, comm_workers, &status);
+                            MPI_Recv(&(curr_image[0][B][0]), 1, row_t, r_n, 0, comm_workers, MPI_STATUS_IGNORE);
                             MPI_Send(&(curr_image[B][B][0]), 1, row_t, r_n, 0, comm_workers);
                         }
 
                         if (r_s != MPI_PROC_NULL) // sendrecv south
                         {
-                            MPI_Recv(&(curr_image[height + B][B][0]), 1, row_t, r_s, 0, comm_workers, &status);
+                            MPI_Recv(&(curr_image[height + B][B][0]), 1, row_t, r_s, 0, comm_workers, MPI_STATUS_IGNORE);
                             MPI_Send(&(curr_image[height][B][0]), 1, row_t, r_s, 0, comm_workers);
                         }
                     }
@@ -264,25 +262,25 @@ int main_sync_omp(int argc, char** argv)
                         if (r_e != MPI_PROC_NULL) // sendrecv east
                         {
                             MPI_Send(&(curr_image[B][width][0]), 1, column_t, r_e, 0, comm_workers);
-                            MPI_Recv(&(curr_image[B][width + B][0]), 1, column_t, r_e, 0, comm_workers, &status);
+                            MPI_Recv(&(curr_image[B][width + B][0]), 1, column_t, r_e, 0, comm_workers, MPI_STATUS_IGNORE);
                         }
 
                         if (r_w != MPI_PROC_NULL) // sendrecv west
                         {
                             MPI_Send(&(curr_image[B][B][0]), 1, column_t, r_w, 0, comm_workers);
-                            MPI_Recv(&(curr_image[B][0][0]), 1, column_t, r_w, 0, comm_workers, &status);
+                            MPI_Recv(&(curr_image[B][0][0]), 1, column_t, r_w, 0, comm_workers, MPI_STATUS_IGNORE);
                         }
                     } else // odd column
                     {
                         if (r_w != MPI_PROC_NULL) // sendrecv west
                         {
-                            MPI_Recv(&(curr_image[B][0][0]), 1, column_t, r_w, 0, comm_workers, &status);
+                            MPI_Recv(&(curr_image[B][0][0]), 1, column_t, r_w, 0, comm_workers, MPI_STATUS_IGNORE);
                             MPI_Send(&(curr_image[B][B][0]), 1, column_t, r_w, 0, comm_workers);
                         }
 
                         if (r_e != MPI_PROC_NULL) // sendrecv east
                         {
-                            MPI_Recv(&(curr_image[B][width + B][0]), 1, column_t, r_e, 0, comm_workers, &status);
+                            MPI_Recv(&(curr_image[B][width + B][0]), 1, column_t, r_e, 0, comm_workers, MPI_STATUS_IGNORE);
                             MPI_Send(&(curr_image[B][width][0]), 1, column_t, r_e, 0, comm_workers);
                         }
                     }
@@ -294,49 +292,49 @@ int main_sync_omp(int argc, char** argv)
                         if (r_se != MPI_PROC_NULL) // sendrecv southeast
                         {
                             MPI_Send(&(curr_image[height][width][0]), 1, corner_t, r_se, 0, comm_workers);
-                            MPI_Recv(&(curr_image[height + B][width + B][0]), 1, corner_t, r_se, 0, comm_workers, &status);
+                            MPI_Recv(&(curr_image[height + B][width + B][0]), 1, corner_t, r_se, 0, comm_workers, MPI_STATUS_IGNORE);
                         }
 
                         if (r_nw != MPI_PROC_NULL) // sendrecv northwest
                         {
                             MPI_Send(&(curr_image[B][B][0]), 1, corner_t, r_nw, 0, comm_workers);
-                            MPI_Recv(&(curr_image[0][0][0]), 1, corner_t, r_nw, 0, comm_workers, &status);
+                            MPI_Recv(&(curr_image[0][0][0]), 1, corner_t, r_nw, 0, comm_workers, MPI_STATUS_IGNORE);
                         }
 
                         if (r_sw != MPI_PROC_NULL) // sendrecv southwest
                         {
                             MPI_Send(&(curr_image[height][B][0]), 1, corner_t, r_sw, 0, comm_workers);
-                            MPI_Recv(&(curr_image[height + B][0][0]), 1, corner_t, r_sw, 0, comm_workers, &status);
+                            MPI_Recv(&(curr_image[height + B][0][0]), 1, corner_t, r_sw, 0, comm_workers, MPI_STATUS_IGNORE);
                         }
 
                         if (r_ne != MPI_PROC_NULL) // sendrecv northeast
                         {
                             MPI_Send(&(curr_image[B][width][0]), 1, corner_t, r_ne, 0, comm_workers);
-                            MPI_Recv(&(curr_image[0][width + B][0]), 1, corner_t, r_ne, 0, comm_workers, &status);
+                            MPI_Recv(&(curr_image[0][width + B][0]), 1, corner_t, r_ne, 0, comm_workers, MPI_STATUS_IGNORE);
                         }
                     } else // odd row
                     {
                         if (r_nw != MPI_PROC_NULL) // sendrecv northwest
                         {
-                            MPI_Recv(&(curr_image[0][0][0]), 1, corner_t, r_nw, 0, comm_workers, &status);
+                            MPI_Recv(&(curr_image[0][0][0]), 1, corner_t, r_nw, 0, comm_workers, MPI_STATUS_IGNORE);
                             MPI_Send(&(curr_image[B][B][0]), 1, corner_t, r_nw, 0, comm_workers);
                         }
 
                         if (r_se != MPI_PROC_NULL) // sendrecv southeast
                         {
-                            MPI_Recv(&(curr_image[height + B][width + B][0]), 1, corner_t, r_se, 0, comm_workers, &status);
+                            MPI_Recv(&(curr_image[height + B][width + B][0]), 1, corner_t, r_se, 0, comm_workers, MPI_STATUS_IGNORE);
                             MPI_Send(&(curr_image[height][width][0]), 1, corner_t, r_se, 0, comm_workers);
                         }
 
                         if (r_ne != MPI_PROC_NULL) // sendrecv northeast
                         {
-                            MPI_Recv(&(curr_image[0][width + B][0]), 1, corner_t, r_ne, 0, comm_workers, &status);
+                            MPI_Recv(&(curr_image[0][width + B][0]), 1, corner_t, r_ne, 0, comm_workers, MPI_STATUS_IGNORE);
                             MPI_Send(&(curr_image[B][width][0]), 1, corner_t, r_ne, 0, comm_workers);
                         }
 
                         if (r_sw != MPI_PROC_NULL) // sendrecv southwest
                         {
-                            MPI_Recv(&(curr_image[height + B][0][0]), 1, corner_t, r_sw, 0, comm_workers, &status);
+                            MPI_Recv(&(curr_image[height + B][0][0]), 1, corner_t, r_sw, 0, comm_workers, MPI_STATUS_IGNORE);
                             MPI_Send(&(curr_image[height][B][0]), 1, corner_t, r_sw, 0, comm_workers);
                         }
                     }
@@ -480,7 +478,7 @@ int main_sync_omp(int argc, char** argv)
                     }
                 }
 
-                /* Threads should not move to next iteration until master thread has finished switching buffers. */
+                /* Threads should not move to next iteration until master thread has switched buffers. */
 #pragma omp barrier
 
             }

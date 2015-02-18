@@ -303,11 +303,9 @@ int main_async_omp_simple(int argc, char** argv)
 
         /* Apply filter. */
 
-        bool converged = false;
-
         unsigned int n;
 
-        for (n = 0; !converged && (iterations == 0 || n < iterations) && (iterations != 0 || convergence != 0); n++)
+        for (n = 0; (iterations == 0 || n < iterations) && (iterations != 0 || convergence != 0); n++)
         {
             /* Select appropriate sends/recvs depending on active image buffer. */
 
@@ -529,7 +527,7 @@ int main_async_omp_simple(int argc, char** argv)
                     if (worker_rank == 0)
                         printf("Filter has converged after %d iterations.\n", n);
 
-                    converged = true; // break not allowed from OpenMP structured block
+                    break;
                 }
             }
         }

@@ -538,7 +538,7 @@ int main_async_omp(int argc, char** argv)
                     }
                 }
 
-                /* Threads should not move to next iteration until master thread has finished switching buffers. */
+                /* Threads should not move to next iteration until master thread has switched buffers. */
 #pragma omp barrier
 
             }
