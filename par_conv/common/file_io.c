@@ -97,6 +97,10 @@ bool read_image(unsigned char ***file_buffer)
             perror("read_image");
     }
 
+    /* Close input file. */
+    
+    fclose(in_fp);
+    
     //	if (ok)
     //		printf("Image read.\n");
 
