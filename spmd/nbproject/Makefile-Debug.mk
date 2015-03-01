@@ -23,7 +23,7 @@ AS=as
 # Macros
 CND_PLATFORM=GNU-Linux-x86
 CND_DLIB_EXT=so
-CND_CONF=Release
+CND_CONF=Debug
 CND_DISTDIR=dist
 CND_BUILDDIR=build
 
@@ -69,81 +69,81 @@ LDLIBSOPTIONS=
 
 # Build Targets
 .build-conf: ${BUILD_SUBPROJECTS}
-	"${MAKE}"  -f nbproject/Makefile-${CND_CONF}.mk ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/par_conv
+	"${MAKE}"  -f nbproject/Makefile-${CND_CONF}.mk ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/spmd
 
-${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/par_conv: ${OBJECTFILES}
+${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/spmd: ${OBJECTFILES}
 	${MKDIR} -p ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}
-	${LINK.c} -o ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/par_conv ${OBJECTFILES} ${LDLIBSOPTIONS}
+	${LINK.c} -o ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/spmd ${OBJECTFILES} ${LDLIBSOPTIONS}
 
 ${OBJECTDIR}/async/main_async.o: async/main_async.c 
 	${MKDIR} -p ${OBJECTDIR}/async
 	${RM} "$@.d"
-	$(COMPILE.c) -O2 -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/async/main_async.o async/main_async.c
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/async/main_async.o async/main_async.c
 
 ${OBJECTDIR}/async/main_async_nonper.o: async/main_async_nonper.c 
 	${MKDIR} -p ${OBJECTDIR}/async
 	${RM} "$@.d"
-	$(COMPILE.c) -O2 -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/async/main_async_nonper.o async/main_async_nonper.c
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/async/main_async_nonper.o async/main_async_nonper.c
 
 ${OBJECTDIR}/async/main_async_omp.o: async/main_async_omp.c 
 	${MKDIR} -p ${OBJECTDIR}/async
 	${RM} "$@.d"
-	$(COMPILE.c) -O2 -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/async/main_async_omp.o async/main_async_omp.c
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/async/main_async_omp.o async/main_async_omp.c
 
 ${OBJECTDIR}/async/main_async_omp_simple.o: async/main_async_omp_simple.c 
 	${MKDIR} -p ${OBJECTDIR}/async
 	${RM} "$@.d"
-	$(COMPILE.c) -O2 -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/async/main_async_omp_simple.o async/main_async_omp_simple.c
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/async/main_async_omp_simple.o async/main_async_omp_simple.c
 
 ${OBJECTDIR}/common/2d_malloc.o: common/2d_malloc.c 
 	${MKDIR} -p ${OBJECTDIR}/common
 	${RM} "$@.d"
-	$(COMPILE.c) -O2 -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/common/2d_malloc.o common/2d_malloc.c
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/common/2d_malloc.o common/2d_malloc.c
 
 ${OBJECTDIR}/common/file_io.o: common/file_io.c 
 	${MKDIR} -p ${OBJECTDIR}/common
 	${RM} "$@.d"
-	$(COMPILE.c) -O2 -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/common/file_io.o common/file_io.c
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/common/file_io.o common/file_io.c
 
 ${OBJECTDIR}/common/filter.o: common/filter.c 
 	${MKDIR} -p ${OBJECTDIR}/common
 	${RM} "$@.d"
-	$(COMPILE.c) -O2 -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/common/filter.o common/filter.c
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/common/filter.o common/filter.c
 
 ${OBJECTDIR}/common/topology.o: common/topology.c 
 	${MKDIR} -p ${OBJECTDIR}/common
 	${RM} "$@.d"
-	$(COMPILE.c) -O2 -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/common/topology.o common/topology.c
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/common/topology.o common/topology.c
 
 ${OBJECTDIR}/main.o: main.c 
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} "$@.d"
-	$(COMPILE.c) -O2 -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/main.o main.c
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/main.o main.c
 
 ${OBJECTDIR}/serial/main_serial.o: serial/main_serial.c 
 	${MKDIR} -p ${OBJECTDIR}/serial
 	${RM} "$@.d"
-	$(COMPILE.c) -O2 -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/serial/main_serial.o serial/main_serial.c
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/serial/main_serial.o serial/main_serial.c
 
 ${OBJECTDIR}/serial/main_serial_omp.o: serial/main_serial_omp.c 
 	${MKDIR} -p ${OBJECTDIR}/serial
 	${RM} "$@.d"
-	$(COMPILE.c) -O2 -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/serial/main_serial_omp.o serial/main_serial_omp.c
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/serial/main_serial_omp.o serial/main_serial_omp.c
 
 ${OBJECTDIR}/sync/main_sync.o: sync/main_sync.c 
 	${MKDIR} -p ${OBJECTDIR}/sync
 	${RM} "$@.d"
-	$(COMPILE.c) -O2 -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/sync/main_sync.o sync/main_sync.c
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/sync/main_sync.o sync/main_sync.c
 
 ${OBJECTDIR}/sync/main_sync_omp.o: sync/main_sync_omp.c 
 	${MKDIR} -p ${OBJECTDIR}/sync
 	${RM} "$@.d"
-	$(COMPILE.c) -O2 -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/sync/main_sync_omp.o sync/main_sync_omp.c
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/sync/main_sync_omp.o sync/main_sync_omp.c
 
 ${OBJECTDIR}/sync/main_sync_omp_simple.o: sync/main_sync_omp_simple.c 
 	${MKDIR} -p ${OBJECTDIR}/sync
 	${RM} "$@.d"
-	$(COMPILE.c) -O2 -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/sync/main_sync_omp_simple.o sync/main_sync_omp_simple.c
+	$(COMPILE.c) -g -Wall -I/usr/local/mpich2/include -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/sync/main_sync_omp_simple.o sync/main_sync_omp_simple.c
 
 # Subprojects
 .build-subprojects:
@@ -151,7 +151,7 @@ ${OBJECTDIR}/sync/main_sync_omp_simple.o: sync/main_sync_omp_simple.c
 # Clean Targets
 .clean-conf: ${CLEAN_SUBPROJECTS}
 	${RM} -r ${CND_BUILDDIR}/${CND_CONF}
-	${RM} ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/par_conv
+	${RM} ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/spmd
 
 # Subprojects
 .clean-subprojects:
